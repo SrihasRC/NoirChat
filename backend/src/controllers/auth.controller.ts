@@ -43,3 +43,36 @@ export const signUp = async (req: Req, res: Res, next: Next) => {
         next(error);
     }
 }
+
+export const signIn = async (req: Req, res: Res, next: Next) => {
+    try {
+        const { email, password } = req.body;
+
+        const user = await User.findOne({ email });
+        if(!user) {
+            const error: any = new Error("User not found");
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            const error: any = new Error("Invalid password");
+            error.statusCode = 401;
+            throw error;
+        }
+
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: parseInt(JWT_EXPIRATION as string, 10) });
+
+        res.status(200).json({
+            success: true,
+            message: "User signed in successfully",
+            data: {
+                token,
+                user,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
