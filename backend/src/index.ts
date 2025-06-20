@@ -1,7 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
-
-const PORT = process.env.PORT || 5000;
+import { PORT } from './config/env.ts';
 
 const app = express();
 const server = createServer(app);
