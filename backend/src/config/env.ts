@@ -10,7 +10,11 @@ config({ path:path.resolve(__dirname, '../../.env') });
 export const {
     PORT = "5500",
     DB_URI,
+    JWT_SECRET, 
+    JWT_EXPIRATION
 } = process.env as {
     PORT: string;
     DB_URI: string;
+    JWT_SECRET: string;
+    JWT_EXPIRATION: string;
 };
