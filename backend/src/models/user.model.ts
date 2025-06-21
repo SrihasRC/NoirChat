@@ -28,7 +28,18 @@ const userSchema = new mongoose.Schema({
         required: [true, 'Password is required'],
         minlength: [6, "Password must be at least 6 characters long"],
     },
+    profilePic: {
+        type: String,
+        default: ""
+    }      
 }, {timestamps: true});
+
+userSchema.pre("save", function (next) {
+    if (!this.profilePic?.trim()) {
+        this.profilePic = `https://ui-avatars.com/api/?name=${this.username}&background=random&color=fff&rounded=true&bold=true`;
+    }
+    next();
+});
 
 const User = mongoose.model("User", userSchema);
 
