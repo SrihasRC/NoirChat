@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { JWT_SECRET, JWT_EXPIRATION } from "../config/env.ts";
 import { Req, Res, Next } from "../types/express.ts";
+import { NODE_ENV } from "../config/env.ts";
+
+const isProduction = NODE_ENV === "production";
 
 export const signUp = async (req: Req, res: Res, next: Next) => {
     const session = await mongoose.startSession();
@@ -24,6 +27,13 @@ export const signUp = async (req: Req, res: Res, next: Next) => {
 
         const newUser = await User.create([{name, username, email, password: hashedPassword}], { session });
         const token = jwt.sign({ userId: newUser[0]._id }, JWT_SECRET, { expiresIn: parseInt(JWT_EXPIRATION as string, 10) });
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000,        
+        });
 
         await session.commitTransaction();
         session.endSession();
@@ -63,6 +73,13 @@ export const signIn = async (req: Req, res: Res, next: Next) => {
         }
 
         const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: parseInt(JWT_EXPIRATION as string, 10) });
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000,        
+        });
 
         res.status(200).json({
             success: true,
