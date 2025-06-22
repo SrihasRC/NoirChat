@@ -7,7 +7,10 @@ import {
   editMessage,
   markAsRead,
   searchMessages,
-  getMessageStats
+  getMessageStats,
+  addReaction,
+  removeReaction,
+  replyToMessage
 } from "../controllers/message.controller.ts";
 import authMiddleware from "../middleware/auth.middleware.ts";
 

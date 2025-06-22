@@ -452,3 +452,179 @@ export const getMessageStats = async (req: Req, res: Res, next: Next) => {
     next(err);
   }
 };
+
+// Add reaction to message
+export const addReaction = async (req: Req, res: Res, next: Next) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.user._id;
+
+    if (!emoji) {
+      return res.status(400).json({
+        success: false,
+        message: "Emoji is required"
+      });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: "Message not found"
+      });
+    }
+
+    // Check if user already reacted with this emoji
+    const existingReaction = message.reactions.find(
+      reaction => reaction.user.toString() === userId.toString() && reaction.emoji === emoji
+    );
+
+    if (existingReaction) {
+      return res.status(400).json({
+        success: false,
+        message: "You already reacted with this emoji"
+      });
+    }
+
+    // Add reaction
+    message.reactions.push({
+      user: userId,
+      emoji
+    });
+
+    await message.save();
+    await message.populate([
+      { path: 'sender', select: 'username name profilePic' },
+      { path: 'reactions.user', select: 'username name profilePic' }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Reaction added successfully",
+      data: message
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Remove reaction from message
+export const removeReaction = async (req: Req, res: Res, next: Next) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.user._id;
+
+    if (!emoji) {
+      return res.status(400).json({
+        success: false,
+        message: "Emoji is required"
+      });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: "Message not found"
+      });
+    }
+
+    // Find and remove reaction
+    const reactionIndex = message.reactions.findIndex(
+      reaction => reaction.user.toString() === userId.toString() && reaction.emoji === emoji
+    );
+
+    if (reactionIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        message: "Reaction not found"
+      });
+    }
+
+    message.reactions.splice(reactionIndex, 1);
+    await message.save();
+
+    await message.populate([
+      { path: 'sender', select: 'username name profilePic' },
+      { path: 'reactions.user', select: 'username name profilePic' }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Reaction removed successfully",
+      data: message
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Reply to message
+export const replyToMessage = async (req: Req, res: Res, next: Next) => {
+  try {
+    const { messageId } = req.params;
+    const { content, receiverUsername, roomId } = req.body;
+    const senderId = req.user._id;
+
+    if (!content) {
+      return res.status(400).json({
+        success: false,
+        message: "Reply content is required"
+      });
+    }
+
+    // Check if original message exists
+    const originalMessage = await Message.findById(messageId);
+    if (!originalMessage) {
+      return res.status(404).json({
+        success: false,
+        message: "Original message not found"
+      });
+    }
+
+    let replyData: any = {
+      sender: senderId,
+      content,
+      replyTo: messageId,
+      messageType: "text"
+    };
+
+    // Determine if it's a direct message or room message
+    if (roomId) {
+      replyData.room = roomId;
+    } else if (receiverUsername) {
+      const receiver = await User.findOne({ username: receiverUsername });
+      if (!receiver) {
+        return res.status(404).json({
+          success: false,
+          message: "Receiver not found"
+        });
+      }
+      replyData.receiver = receiver._id;
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "Either receiverUsername or roomId is required"
+      });
+    }
+
+    const reply = await Message.create(replyData);
+
+    await reply.populate([
+      { path: 'sender', select: 'username name profilePic' },
+      { path: 'receiver', select: 'username name profilePic' },
+      { path: 'room', select: 'name' },
+      { path: 'replyTo', select: 'content sender messageType' }
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: "Reply sent successfully",
+      data: reply
+    });
+  } catch (err) {
+    next(err);
+  }
+};
