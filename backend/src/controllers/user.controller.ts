@@ -44,6 +44,16 @@ export const updateProfile = async (req: Req, res: Res, next: Next) => {
     if (status !== undefined) user.status = status;
     if (profilePic !== undefined) user.profilePic = profilePic;
     if (preferences) {
+      // Ensure preferences object exists
+      if (!user.preferences) {
+        user.preferences = {
+          theme: "system",
+          notifications: true,
+          readReceipts: true,
+          typingIndicators: true
+        };
+      }
+      
       if (preferences.theme) user.preferences.theme = preferences.theme;
       if (preferences.notifications !== undefined) user.preferences.notifications = preferences.notifications;
       if (preferences.readReceipts !== undefined) user.preferences.readReceipts = preferences.readReceipts;
