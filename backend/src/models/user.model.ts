@@ -31,6 +31,38 @@ const userSchema = new mongoose.Schema({
     profilePic: {
         type: String,
         default: ""
+    },
+    status: {
+        type: String,
+        maxlength: 100,
+        default: "Hey there! I'm using NoirChat"
+    },
+    isOnline: {
+        type: Boolean,
+        default: false
+    },
+    lastSeen: {
+        type: Date,
+        default: Date.now
+    },
+    preferences: {
+        theme: {
+            type: String,
+            enum: ["light", "dark", "system"],
+            default: "system"
+        },
+        notifications: {
+            type: Boolean,
+            default: true
+        },
+        readReceipts: {
+            type: Boolean,
+            default: true
+        },
+        typingIndicators: {
+            type: Boolean,
+            default: true
+        }
     }      
 }, {timestamps: true});
 

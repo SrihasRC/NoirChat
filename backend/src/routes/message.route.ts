@@ -33,5 +33,11 @@ messageRouter.post("/mark-read", authMiddleware, markAsRead);
 messageRouter.get("/search", authMiddleware, searchMessages);
 // @ts-ignore
 messageRouter.get("/stats", authMiddleware, getMessageStats);
+// @ts-ignore
+messageRouter.post("/:messageId/reaction", authMiddleware, addReaction);
+// @ts-ignore
+messageRouter.delete("/:messageId/reaction", authMiddleware, removeReaction);
+// @ts-ignore
+messageRouter.post("/:messageId/reply", authMiddleware, replyToMessage);
 
 export default messageRouter;

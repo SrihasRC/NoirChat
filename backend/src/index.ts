@@ -7,9 +7,11 @@ import authRouter from './routes/auth.route.ts';
 import friendRouter from './routes/friend.route.ts';
 import messageRouter from './routes/message.route.ts';
 import roomRouter from './routes/room.route.ts';
+import userRouter from './routes/user.route.ts';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import './types/socket.ts'; // Import socket type extensions
+import User from './models/user.model.ts';
 
 const app = express();
 const server = createServer(app);
@@ -35,6 +37,7 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/friends', friendRouter);
 app.use('/api/v1/messages', messageRouter);
 app.use('/api/v1/rooms', roomRouter);
+app.use('/api/v1/users', userRouter);
 
 app.get('/', (req, res) => {
   res.send('Welcome to NoirChat API');
@@ -47,11 +50,14 @@ io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   // User authentication and joining
-  socket.on('join', (userId) => {
+  socket.on('join', async (userId) => {
     connectedUsers.set(userId, socket.id);
     socket.userId = userId;
     socket.join(userId); // Join a room with their user ID
     console.log(`User ${userId} joined with socket ${socket.id}`);
+    
+    // Update user online status
+    await User.findByIdAndUpdate(userId, { isOnline: true });
     
     // Notify friends that user is online
     socket.broadcast.emit('user-online', userId);
@@ -159,10 +165,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('User disconnected:', socket.id);
     if (socket.userId) {
       connectedUsers.delete(socket.userId);
+      
+      // Update user offline status
+      await User.findByIdAndUpdate(socket.userId, { 
+        isOnline: false, 
+        lastSeen: new Date() 
+      });
+      
       socket.broadcast.emit('user-offline', socket.userId);
     }
   });
