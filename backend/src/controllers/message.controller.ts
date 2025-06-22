@@ -344,3 +344,111 @@ export const markAsRead = async (req: Req, res: Res, next: Next) => {
     next(err);
   }
 };
+
+// Search messages
+export const searchMessages = async (req: Req, res: Res, next: Next) => {
+  try {
+    const { query = "", type = "all", page = 1, limit = 20 } = req.query;
+    const userId = req.user._id;
+
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        message: "Search query is required"
+      });
+    }
+
+    let searchFilter: any = {
+      $or: [
+        { sender: userId },
+        { receiver: userId }
+      ],
+      content: { $regex: query, $options: 'i' },
+      isDeleted: false
+    };
+
+    // Filter by message type if specified
+    if (type !== "all") {
+      searchFilter.messageType = type;
+    }
+
+    const messages = await Message.find(searchFilter)
+      .populate([
+        { path: 'sender', select: 'username name profilePic' },
+        { path: 'receiver', select: 'username name profilePic' },
+        { path: 'room', select: 'name' }
+      ])
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .skip((Number(page) - 1) * Number(limit));
+
+    res.status(200).json({
+      success: true,
+      message: "Messages search completed",
+      data: {
+        messages,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          hasMore: messages.length === Number(limit)
+        }
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Get message statistics
+export const getMessageStats = async (req: Req, res: Res, next: Next) => {
+  try {
+    const userId = req.user._id;
+
+    const stats = await Message.aggregate([
+      {
+        $match: {
+          $or: [{ sender: userId }, { receiver: userId }],
+          isDeleted: false
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalMessages: { $sum: 1 },
+          sentMessages: {
+            $sum: { $cond: [{ $eq: ["$sender", userId] }, 1, 0] }
+          },
+          receivedMessages: {
+            $sum: { $cond: [{ $eq: ["$receiver", userId] }, 1, 0] }
+          },
+          unreadMessages: {
+            $sum: { $cond: [
+              { $and: [{ $eq: ["$receiver", userId] }, { $eq: ["$isRead", false] }] },
+              1, 0
+            ]}
+          },
+          messagesByType: {
+            $push: {
+              type: "$messageType",
+              count: 1
+            }
+          }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Message statistics retrieved",
+      data: stats[0] || {
+        totalMessages: 0,
+        sentMessages: 0,
+        receivedMessages: 0,
+        unreadMessages: 0,
+        messagesByType: []
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};

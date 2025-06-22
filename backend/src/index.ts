@@ -6,6 +6,7 @@ import connectToDatabase from './db/mongodb.ts';
 import authRouter from './routes/auth.route.ts';
 import friendRouter from './routes/friend.route.ts';
 import messageRouter from './routes/message.route.ts';
+import roomRouter from './routes/room.route.ts';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import './types/socket.ts'; // Import socket type extensions
@@ -33,6 +34,7 @@ app.use(cookieParser());
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/friends', friendRouter);
 app.use('/api/v1/messages', messageRouter);
+app.use('/api/v1/rooms', roomRouter);
 
 app.get('/', (req, res) => {
   res.send('Welcome to NoirChat API');
@@ -84,6 +86,53 @@ io.on('connection', (socket) => {
     } catch (error) {
       socket.emit('error', { message: 'Failed to send message' });
     }
+  });
+
+  // Handle room message sending
+  socket.on('send-room-message', async (data) => {
+    try {
+      const { roomId, content, messageType = 'text', fileUrl = '', fileName = '', fileSize = 0 } = data;
+      
+      // Emit to all users in the room
+      socket.to(roomId).emit('receive-room-message', {
+        roomId,
+        senderId: socket.userId,
+        content,
+        messageType,
+        fileUrl,
+        fileName,
+        fileSize,
+        timestamp: new Date()
+      });
+
+      // Send confirmation back to sender
+      socket.emit('room-message-sent', {
+        roomId,
+        content,
+        messageType,
+        timestamp: new Date()
+      });
+    } catch (error) {
+      socket.emit('error', { message: 'Failed to send room message' });
+    }
+  });
+
+  // Handle joining rooms for real-time updates
+  socket.on('join-room', (roomId) => {
+    socket.join(roomId);
+    socket.to(roomId).emit('user-joined-room', {
+      userId: socket.userId,
+      roomId
+    });
+  });
+
+  // Handle leaving rooms
+  socket.on('leave-room', (roomId) => {
+    socket.leave(roomId);
+    socket.to(roomId).emit('user-left-room', {
+      userId: socket.userId,
+      roomId
+    });
   });
 
   // Handle typing indicators

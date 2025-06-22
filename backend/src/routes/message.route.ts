@@ -5,7 +5,9 @@ import {
   getUserConversations,
   deleteMessage,
   editMessage,
-  markAsRead
+  markAsRead,
+  searchMessages,
+  getMessageStats
 } from "../controllers/message.controller.ts";
 import authMiddleware from "../middleware/auth.middleware.ts";
 
@@ -24,5 +26,9 @@ messageRouter.delete("/:messageId", authMiddleware, deleteMessage);
 messageRouter.put("/:messageId", authMiddleware, editMessage);
 // @ts-ignore
 messageRouter.post("/mark-read", authMiddleware, markAsRead);
+// @ts-ignore
+messageRouter.get("/search", authMiddleware, searchMessages);
+// @ts-ignore
+messageRouter.get("/stats", authMiddleware, getMessageStats);
 
 export default messageRouter;
