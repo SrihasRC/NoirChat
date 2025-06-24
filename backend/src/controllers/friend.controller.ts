@@ -2,7 +2,7 @@ import { Req, Res, Next } from "../types/express.ts";
 import Friend from "../models/friend.model.ts";
 import User from "../models/user.model.ts";
 
-export const sendFriendRequest = async (req: Req, res: Res, next: Next) => {
+export const addFriend = async (req: Req, res: Res, next: Next) => {
   try {
     const { username } = req.body;
     const userId = req.user._id;
@@ -29,6 +29,7 @@ export const sendFriendRequest = async (req: Req, res: Res, next: Next) => {
       throw error;
     }
 
+    // Check if already friends
     const existing = await Friend.findOne({
       $or: [
         { requester: userId, recipient: friendId },
@@ -37,15 +38,16 @@ export const sendFriendRequest = async (req: Req, res: Res, next: Next) => {
     });
 
     if (existing) {
-      const error: any = new Error("Friend request already exists or you're already friends");
+      const error: any = new Error("Already friends");
       error.status = 400;
       throw error;
     }
 
+    // Directly create friendship without pending status
     const friendship = await Friend.create({
       requester: userId,
       recipient: friendId,
-      status: "pending"
+      status: "accepted"
     });
 
     // Populate user information for better response
@@ -56,159 +58,7 @@ export const sendFriendRequest = async (req: Req, res: Res, next: Next) => {
 
     res.status(201).json({
       success: true,
-      message: "Friend request sent successfully",
-      data: friendship
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const acceptFriendRequest = async (req: Req, res: Res, next: Next) => {
-  try {
-    const { username } = req.body;
-    const userId = req.user._id;
-    
-    if (!username) {
-      const error: any = new Error("Username is required");
-      error.status = 400;
-      throw error;
-    }
-    
-    // Find the requester by username
-    const requesterUser = await User.findOne({ username });
-    if (!requesterUser) {
-      const error: any = new Error("User not found");
-      error.status = 404;
-      throw error;
-    }
-    
-    const requesterId = requesterUser._id;
-
-    const friendship = await Friend.findOneAndUpdate(
-      { requester: requesterId, recipient: userId, status: "pending" },
-      { status: "accepted", actionUser: userId },
-      { new: true }
-    );
-
-    if (!friendship) {
-      const error: any = new Error("Friend request not found");
-      error.status = 404;
-      throw error;
-    }
-
-    // Populate user information
-    await friendship.populate([
-      { path: 'requester', select: 'username name email' },
-      { path: 'recipient', select: 'username name email' }
-    ]);
-
-    res.status(200).json({
-      success: true,
-      message: "Friend request accepted",
-      data: friendship
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const rejectFriendRequest = async (req: Req, res: Res, next: Next) => {
-  try {
-    const { username } = req.body;
-    const userId = req.user._id;
-    
-    if (!username) {
-      const error: any = new Error("Username is required");
-      error.status = 400;
-      throw error;
-    }
-    
-    // Find the requester by username
-    const requesterUser = await User.findOne({ username });
-    if (!requesterUser) {
-      const error: any = new Error("User not found");
-      error.status = 404;
-      throw error;
-    }
-    
-    const requesterId = requesterUser._id;
-
-    const friendship = await Friend.findOneAndUpdate(
-      { requester: requesterId, recipient: userId, status: "pending" },
-      { status: "rejected", actionUser: userId },
-      { new: true }
-    );
-
-    if (!friendship) {
-      const error: any = new Error("Friend request not found");
-      error.status = 404;
-      throw error;
-    }
-
-    // Populate user information
-    await friendship.populate([
-      { path: 'requester', select: 'username name email' },
-      { path: 'recipient', select: 'username name email' }
-    ]);
-
-    res.status(200).json({
-      success: true,
-      message: "Friend request rejected",
-      data: friendship
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const blockUser = async (req: Req, res: Res, next: Next) => {
-  try {
-    const { username } = req.body;
-    const userId = req.user._id;
-    
-    if (!username) {
-      const error: any = new Error("Username is required");
-      error.status = 400;
-      throw error;
-    }
-    
-    // Find user by username
-    const userToBlock = await User.findOne({ username });
-    if (!userToBlock) {
-      const error: any = new Error("User not found");
-      error.status = 404;
-      throw error;
-    }
-    
-    const userIdToBlock = userToBlock._id;
-    
-    if (userId.toString() === userIdToBlock.toString()) {
-      const error: any = new Error("You cannot block yourself");
-      error.status = 400;
-      throw error;
-    }
-
-    const friendship = await Friend.findOneAndUpdate(
-      {
-        $or: [
-          { requester: userId, recipient: userIdToBlock },
-          { requester: userIdToBlock, recipient: userId }
-        ]
-      },
-      { status: "blocked", actionUser: userId },
-      { upsert: true, new: true }
-    );
-
-    // Populate user information
-    await friendship.populate([
-      { path: 'requester', select: 'username name email' },
-      { path: 'recipient', select: 'username name email' }
-    ]);
-
-    res.status(200).json({
-      success: true,
-      message: "User blocked successfully",
+      message: "Friend added successfully",
       data: friendship
     });
   } catch (err) {
@@ -241,35 +91,7 @@ export const getFriends = async (req: Req, res: Res, next: Next) => {
   }
 };
 
-export const getPendingRequests = async (req: Req, res: Res, next: Next) => {
-  try {
-    const userId = req.user._id;
-
-    const received = await Friend.find({
-      recipient: userId,
-      status: "pending"
-    }).populate("requester", "username name email");
-
-    const sent = await Friend.find({
-      requester: userId,
-      status: "pending"
-    }).populate("recipient", "username name email");
-
-    res.status(200).json({
-      success: true,
-      message: "Pending requests retrieved successfully",
-      pending: {
-        received,
-        sent
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Add a method to unfriend
-export const unfriend = async (req: Req, res: Res, next: Next) => {
+export const removeFriend = async (req: Req, res: Res, next: Next) => {
   try {
     const { username } = req.body;
     const userId = req.user._id;
@@ -305,7 +127,7 @@ export const unfriend = async (req: Req, res: Res, next: Next) => {
 
     res.status(200).json({
       success: true,
-      message: "Unfriended successfully"
+      message: "Friend removed successfully"
     });
   } catch (err) {
     next(err);

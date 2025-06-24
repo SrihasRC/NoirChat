@@ -1,32 +1,18 @@
 import { Router } from "express";
 import { 
-  sendFriendRequest, 
-  acceptFriendRequest, 
-  rejectFriendRequest, 
-  blockUser, 
+  addFriend, 
   getFriends, 
-  getPendingRequests, 
-  unfriend 
+  removeFriend 
 } from "../controllers/friend.controller.ts";
 import authMiddleware from "../middleware/auth.middleware.ts";
 
 const friendRouter = Router();
 
 // @ts-ignore
-friendRouter.post("/send-request", authMiddleware, sendFriendRequest);
+friendRouter.post("/add", authMiddleware, addFriend);
 // @ts-ignore
-friendRouter.post("/accept-request", authMiddleware, acceptFriendRequest);
+friendRouter.get("/", authMiddleware, getFriends);
 // @ts-ignore
-friendRouter.post("/reject-request", authMiddleware, rejectFriendRequest);
-
-// @ts-ignore
-friendRouter.post("/block-user", authMiddleware, blockUser);
-// @ts-ignore
-friendRouter.get("/friends", authMiddleware, getFriends);
-
-// @ts-ignore
-friendRouter.get("/pending-requests", authMiddleware, getPendingRequests);
-// @ts-ignore
-friendRouter.post("/unfriend", authMiddleware, unfriend);
+friendRouter.delete("/remove", authMiddleware, removeFriend);
 
 export default friendRouter;

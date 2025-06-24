@@ -13,18 +13,8 @@ const friendSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["pending", "accepted", "rejected", "blocked"],
-        default: "pending"
-    },
-    actionUserId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true
-    },
-    message: {
-        type: String,
-        maxlength: 200,
-        default: ""
+        enum: ["accepted"],
+        default: "accepted"
     }
 }, { timestamps: true });
 
