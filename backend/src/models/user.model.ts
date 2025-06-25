@@ -31,7 +31,19 @@ const userSchema = new mongoose.Schema({
     profilePic: {
         type: String,
         default: ""
-    }      
+    },
+    isOnline: {
+        type: Boolean,
+        default: false
+    },
+    lastSeen: {
+        type: Date,
+        default: Date.now
+    },
+    bio: {
+        type: String,
+        maxlength: 200
+    },   
 }, {timestamps: true});
 
 userSchema.pre("save", function (next) {

@@ -8,6 +8,7 @@ import friendRouter from './routes/friend.route.ts';
 import cookieParser from 'cookie-parser';
 import messageRouter from './routes/message.route.ts';
 import roomRouter from './routes/room.route.ts';
+import userRouter from './routes/user.route.ts';
 
 const app = express();
 const server = createServer(app);
@@ -25,6 +26,7 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/friends', friendRouter);
 app.use('/api/v1/messages', messageRouter);
 app.use('/api/v1/rooms', roomRouter);
+app.use('/api/v1/users', userRouter);
 
 app.get('/', (req, res) => {
   res.send('Welcome to NoirChat API');
