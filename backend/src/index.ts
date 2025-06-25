@@ -9,9 +9,11 @@ import cookieParser from 'cookie-parser';
 import messageRouter from './routes/message.route.ts';
 import roomRouter from './routes/room.route.ts';
 import userRouter from './routes/user.route.ts';
+import { initializeSocket } from './socket/socket.ts';
 
 const app = express();
 const server = createServer(app);
+const io = initializeSocket(server);
 
 app.use(cors({
   origin: 'http://localhost:3000',
@@ -30,6 +32,14 @@ app.use('/api/v1/users', userRouter);
 
 app.get('/', (req, res) => {
   res.send('Welcome to NoirChat API');
+});
+
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error'
+  });
 });
 
 server.listen(PORT, async () => {
