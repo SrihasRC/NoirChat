@@ -164,3 +164,110 @@ export const editMessage = async (req: Req, res: Res, next: Next) => {
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
+
+export const getUnreadMessagesCount = async (req: Req, res: Res, next: Next) => {
+    try {
+        const userId = req.user._id;
+
+        const unreadCount = await Message.countDocuments({
+            receiver: userId,
+            isRead: false
+        });
+
+        return res.status(200).json({ success: true, message: "Unread messages count retrieved successfully", data: { count: unreadCount } });
+    } catch (error) {
+        console.error("Error in getUnreadMessagesCount:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
+export const markAsRead = async (req: Req, res: Res, next: Next) => {
+    try {
+        const { messageId } = req.params;
+        const userId = req.user._id;
+
+        if (!messageId) {
+            const error: any = new Error("Message ID is required");
+            error.status = 400;
+            throw error;
+        }
+
+        const message = await Message.findOneAndUpdate(
+            { _id: messageId, receiver: userId, isRead: false },
+            {
+                isRead: true,
+                readBy: [{ user: userId, readAt: new Date() }]
+            },
+            { new: true }
+        );
+
+        if (!message) {
+            const error: any = new Error("Message not found or already read");
+            error.status = 404;
+            throw error;
+        }
+
+        return res.status(200).json({ success: true, message: "Message marked as read successfully", data: message });
+    } catch (error) {
+        console.error("Error in markAsRead:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
+export const searchMessages = async (req: Req, res: Res, next: Next) => {
+    try {
+        const { query } = req.query;
+        const userId = req.user._id;
+
+        if (!query) {
+            const error: any = new Error("Search query is required");
+            error.status = 400;
+            throw error;
+        }
+
+        const messages = await Message.find({
+            $or: [
+                { content: { $regex: query, $options: "i" }, receiver: userId },
+                { content: { $regex: query, $options: "i" }, sender: userId }
+            ]
+        }).sort({ createdAt: -1 }).populate("sender receiver", "username name");
+
+        return res.status(200).json({ success: true, message: "Messages searched successfully", data: messages });
+    } catch (error) {
+        console.error("Error in searchMessages:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
+export const getMessageStats = async (req: Req, res: Res, next: Next) => {
+    try {
+        const userId = req.user._id;
+
+        const totalMessages = await Message.countDocuments({
+            $or: [{ sender: userId }, { receiver: userId }]
+        });
+
+        const unreadMessages = await Message.countDocuments({
+            receiver: userId,
+            isRead: false
+        });
+
+        const readMessages = await Message.countDocuments({
+            receiver: userId,
+            isRead: true
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Message statistics retrieved successfully",
+            data: {
+                totalMessages,
+                unreadMessages,
+                readMessages
+            }
+        });
+    } catch (error) {
+        console.error("Error in getMessageStats:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}

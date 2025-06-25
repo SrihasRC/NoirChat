@@ -5,6 +5,7 @@ import connectToDatabase from './db/mongodb.ts';
 import authRouter from './routes/auth.route.ts';
 import friendRouter from './routes/friend.route.ts';
 import cookieParser from 'cookie-parser';
+import messageRouter from './routes/message.route.ts';
 
 const app = express();
 const server = createServer(app);
@@ -15,6 +16,7 @@ app.use(cookieParser());
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/friends', friendRouter);
+app.use('/api/v1/messages', messageRouter);
 
 app.get('/', (req, res) => {
   res.send('Welcome to NoirChat API');
