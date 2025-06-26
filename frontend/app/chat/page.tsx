@@ -3,6 +3,8 @@
 import { useAuthStore } from '@/stores/chat.store'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import ChatLayout from '@/components/chat/ChatLayout'
+import ChatInterface from '@/components/chat/ChatInterface'
 
 export default function ChatPage() {
   const { isAuthenticated, setUser } = useAuthStore()
@@ -34,6 +36,8 @@ export default function ChatPage() {
   }
 
   return (
-    <div>Chat</div>
+    <ChatLayout>
+      <ChatInterface />
+    </ChatLayout>
   )
 }
