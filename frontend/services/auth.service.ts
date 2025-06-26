@@ -27,44 +27,40 @@ export interface RegisterCredentials {
 export interface AuthResponse {
   success: boolean;
   message: string;
-  user: User;
-  token: string;
+  data: {
+    user: User;
+    token: string;
+  };
 }
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/auth/login", credentials);
+    const response = await api.post<AuthResponse>("/auth/sign-in", credentials);
     if (response.data.success) {
-      Cookies.set("token", response.data.token, { expires: 7 });
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      localStorage.setItem("token", response.data.token);
+      Cookies.set("token", response.data.data.token, { expires: 7 });
+      localStorage.setItem("user", JSON.stringify(response.data.data.user));
+      localStorage.setItem("token", response.data.data.token);
     }
     return response.data;
   }
 
   async register(credentials: RegisterCredentials): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>(
-      "/auth/register",
+      "/auth/sign-up",
       credentials
     );
     if (response.data.success) {
-      Cookies.set("token", response.data.token, { expires: 7 });
-      localStorage.setItem("user", JSON.stringify(response.data.user));
-      localStorage.setItem("token", response.data.token);
+      Cookies.set("token", response.data.data.token, { expires: 7 });
+      localStorage.setItem("user", JSON.stringify(response.data.data.user));
+      localStorage.setItem("token", response.data.data.token);
     }
     return response.data;
   }
 
   async logout(): Promise<void> {
-    try {
-      await api.post("/auth/logout");
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      Cookies.remove("token");
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-    }
+    Cookies.remove("token");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
   }
 
   getCurrentUser(): User | null {

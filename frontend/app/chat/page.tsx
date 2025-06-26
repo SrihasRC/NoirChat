@@ -1,39 +1,39 @@
-
-
 'use client'
 
 import { useAuthStore } from '@/stores/chat.store'
-import AuthPage from '@/components/auth/AuthPage'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function Home() {
+export default function ChatPage() {
   const { isAuthenticated, setUser } = useAuthStore()
   const router = useRouter()
 
   useEffect(() => {
-    // Check if user is already logged in from localStorage
     const savedUser = localStorage.getItem('user')
     if (savedUser) {
       try {
         const user = JSON.parse(savedUser)
-        console.log('Found saved user, redirecting to chat:', user)
+        console.log('Found saved user:', user)
         setUser(user)
-        router.push('/chat')
       } catch (error) {
         console.error('Error parsing saved user:', error)
         localStorage.removeItem('user')
+        router.push('/')
       }
+    } else {
+      router.push('/')
     }
   }, [setUser, router])
 
-  useEffect(() => {
-    // If user becomes authenticated, redirect to chat
-    if (isAuthenticated) {
-      console.log('User authenticated, redirecting to chat')
-      router.push('/chat')
-    }
-  }, [isAuthenticated, router])
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-card to-background flex items-center justify-center dark">
+        <div className="text-foreground text-xl">Redirecting to login...</div>
+      </div>
+    )
+  }
 
-  return <AuthPage />
+  return (
+    <div>Chat</div>
+  )
 }
