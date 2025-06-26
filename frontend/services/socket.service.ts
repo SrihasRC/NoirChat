@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { authService } from './auth.service';
+import { authService } from '@/services/auth.service';
 
 export interface Message {
   _id: string;

@@ -1,5 +1,5 @@
-import api from '../lib/api';
-import { User } from './auth.service';
+import api from '@/lib/api';
+import { User } from '@/services/auth.service';
 
 export type Friend = User;
 
