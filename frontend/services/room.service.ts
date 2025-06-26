@@ -1,6 +1,6 @@
-import api from '../lib/api';
-import { User } from './auth.service';
-import { Message } from './socket.service';
+import api from '@/lib/api';
+import { User } from '@/services/auth.service';
+import { Message } from '@/services/socket.service';
 
 export interface Room {
   _id: string;
