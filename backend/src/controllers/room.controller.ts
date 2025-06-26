@@ -1,6 +1,6 @@
-import { Req, Res, Next } from "../types/express";
-import Room from "../models/room.model";
-import Message from "../models/message.model";
+import { Req, Res, Next } from "../types/express.ts";
+import Room from "../models/room.model.ts";
+import Message from "../models/message.model.ts";
 
 export const createRoom = async (req: Req, res: Res, next: Next) => {
     try {

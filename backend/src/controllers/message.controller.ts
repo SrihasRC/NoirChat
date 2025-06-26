@@ -1,7 +1,6 @@
-import Message from "../models/message.model";
-import Room from "../models/room.model";
-import { Req, Res, Next } from "../types/express";
-import User from "../models/user.model";
+import Message from "../models/message.model.ts";
+import { Req, Res, Next } from "../types/express.ts";
+import User from "../models/user.model.ts";
 
 export const sendDirectMessage = async (req: Req, res: Res, next: Next) => {
     try {

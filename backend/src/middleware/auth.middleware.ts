@@ -1,7 +1,7 @@
-import { JWT_SECRET } from "../config/env";
-import { Req, Res, Next } from "../types/express";
+import { JWT_SECRET } from "../config/env.ts";
+import { Req, Res, Next } from "../types/express.ts";
 import jwt from "jsonwebtoken";
-import User from "../models/user.model";
+import User from "../models/user.model.ts";
 
 const authMiddleware = async (req: Req, res: Res, next: Next) => {
     try {
