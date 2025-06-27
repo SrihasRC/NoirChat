@@ -8,6 +8,7 @@ export interface Room {
   description?: string;
   creator: User;
   members: string[];
+  isPrivate?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,6 +16,8 @@ export interface Room {
 export interface CreateRoomData {
   name: string;
   members: string[];
+  description?: string;
+  isPrivate?: boolean;
 }
 
 export interface UpdateRoomData {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Hash, Users, Settings, Bell, Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -10,6 +10,7 @@ import { roomService, Room } from '@/services/room.service'
 import { friendsService, Friend } from '@/services/friends.service'
 import { User } from '@/services/auth.service'
 import SearchModal from './SearchModal'
+import CreateRoomModal from './CreateRoomModal'
 
 interface ChatLayoutProps {
   children: React.ReactNode
@@ -32,34 +33,39 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
   const [loading, setLoading] = useState(true)
 
   // Load initial data
-  useEffect(() => {
-    const loadData = async () => {
-      if (!user) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        
-        // Load rooms and friends in parallel
-        const [roomsData, friendsData] = await Promise.all([
-          roomService.getRooms(),
-          friendsService.getFriends()
-        ])
-        
-        setRooms(roomsData)
-        setFriends(friendsData)
-      } catch (error) {
-        console.error('Error loading chat data:', error)
-        // Don't redirect on error, just show empty state
-      } finally {
-        setLoading(false)
-      }
+  const loadData = useCallback(async () => {
+    if (!user) {
+      setLoading(false)
+      return
     }
 
-    loadData()
+    try {
+      setLoading(true)
+      
+      // Load rooms and friends in parallel
+      const [roomsData, friendsData] = await Promise.all([
+        roomService.getRooms(),
+        friendsService.getFriends()
+      ])
+      
+      setRooms(roomsData)
+      setFriends(friendsData)
+    } catch (error) {
+      console.error('Error loading chat data:', error)
+      // Don't redirect on error, just show empty state
+    } finally {
+      setLoading(false)
+    }
   }, [user, setRooms, setFriends])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  const handleRoomCreated = () => {
+    // Refresh the rooms list after a new room is created
+    loadData()
+  }
 
   const handleRoomSelect = (room: Room) => {
     setCurrentRoom(room)
@@ -151,9 +157,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                   <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                     Channels
                   </h3>
-                  <Button size="sm" variant="ghost" className="w-6 h-6 p-0">
-                    <Plus className="w-4 h-4" />
-                  </Button>
+                  <CreateRoomModal onRoomCreated={handleRoomCreated} />
                 </div>
                 
                 {loading ? (
@@ -197,7 +201,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                 </h3>
                 {loading ? (
                   <div className="flex items-center justify-center py-4">
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -218,7 +222,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                           }`}
                         >
                           <div className="relative">
-                            <Avatar className="w-6 h-6 ring-2 ring-transparent group-hover:ring-border/50 transition-all">
+                            <Avatar className="w-7 h-7 ring-2 ring-transparent group-hover:ring-border/50 transition-all">
                               <AvatarImage src={friend.profilePic} alt={friend.name} />
                               <AvatarFallback className="text-xs bg-muted/50 backdrop-blur-sm">
                                 {friend.name.split(' ').map((n: string) => n[0]).join('')}
