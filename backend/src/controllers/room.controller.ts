@@ -4,7 +4,7 @@ import Message from "../models/message.model.ts";
 
 export const createRoom = async (req: Req, res: Res, next: Next) => {
     try {
-        const { name, members } = req.body;
+        const { name, members, description, isPrivate } = req.body;
         const creatorId = req.user._id;
 
         if (!name || !members || members.length === 0) {
@@ -14,17 +14,22 @@ export const createRoom = async (req: Req, res: Res, next: Next) => {
         }
 
         // Ensure the creator is included in the members
-        if (!members.includes(creatorId.toString())) {
-            members.push(creatorId.toString());
-        }
+        const membersList = [...new Set([...members, creatorId.toString()])];
 
         const room = new Room({
             name,
-            members,
-            creator: creatorId
+            description: description || "",
+            members: membersList.map(memberId => ({
+                user: memberId,
+                role: memberId === creatorId.toString() ? "owner" : "member"
+            })),
+            creator: creatorId,
+            admins: [creatorId],
+            isPrivate: isPrivate || false
         });
 
         await room.save();
+        await room.populate('creator', 'username email name profilePic');
 
         return res.status(201).json({ success: true, message: "Room created successfully", data: room });
     } catch (error) {
@@ -177,7 +182,9 @@ export const getRooms = async (req: Req, res: Res, next: Next) => {
     try {
         const userId = req.user._id;
 
-        const rooms = await Room.find({ members: userId }).populate("creator", "username name").sort({ createdAt: -1 });
+        const rooms = await Room.find({ 
+            "members.user": userId 
+        }).populate("creator", "username name email profilePic").sort({ createdAt: -1 });
 
         return res.status(200).json({ success: true, message: "Rooms retrieved successfully", data: rooms });
     } catch (error) {
