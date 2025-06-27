@@ -26,7 +26,8 @@ export const signUp = async (req: Req, res: Res, next: Next) => {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         const newUser = await User.create([{name, username, email, password: hashedPassword}], { session });
-        const token = jwt.sign({ userId: newUser[0]._id }, JWT_SECRET, { expiresIn: parseInt(JWT_EXPIRATION as string, 10) });
+        // @ts-ignore
+        const token = jwt.sign({ userId: newUser[0]._id }, JWT_SECRET, { expiresIn: JWT_EXPIRATION });
 
         res.cookie("token", token, {
             httpOnly: true,
@@ -71,8 +72,9 @@ export const signIn = async (req: Req, res: Res, next: Next) => {
             error.statusCode = 401;
             throw error;
         }
-
-        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: parseInt(JWT_EXPIRATION as string, 10) });
+        
+        // @ts-ignore
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRATION });
 
         res.cookie("token", token, {
             httpOnly: true,
