@@ -86,13 +86,11 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('Connected to server');
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus({ isConnected: true, isReconnecting: false });
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('Disconnected from server:', reason);
       this.notifyConnectionStatus({ 
         isConnected: false, 
         isReconnecting: reason !== 'io client disconnect',
@@ -110,14 +108,12 @@ class SocketService {
       });
     });
 
-    this.socket.on('reconnect', (attemptNumber) => {
-      console.log('Reconnected after', attemptNumber, 'attempts');
+    this.socket.on('reconnect', () => {
       this.reconnectAttempts = 0;
       this.notifyConnectionStatus({ isConnected: true, isReconnecting: false });
     });
 
     this.socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log('Reconnection attempt:', attemptNumber);
       this.notifyConnectionStatus({ 
         isConnected: false, 
         isReconnecting: true,

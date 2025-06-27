@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { Search, Hash, Users, Settings, Bell, Plus } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Search, Hash, Users, Settings, Bell, Plus, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useAuthStore } from '@/stores/chat.store'
+import { useAuthStore, useChatStore } from '@/stores/chat.store'
+import { roomService, Room } from '@/services/room.service'
+import { friendsService, Friend } from '@/services/friends.service'
 
 interface ChatLayoutProps {
   children: React.ReactNode
@@ -15,21 +16,59 @@ interface ChatLayoutProps {
 
 export default function ChatLayout({ children }: ChatLayoutProps) {
   const { user } = useAuthStore()
+  const { 
+    rooms, 
+    friends, 
+    currentRoom, 
+    currentChatUser,
+    setRooms, 
+    setFriends, 
+    setCurrentRoom, 
+    setCurrentChatUser 
+  } = useChatStore()
+  
   const [activeTab, setActiveTab] = useState<'rooms' | 'friends'>('rooms')
-  const [selectedRoom, setSelectedRoom] = useState('general')
+  const [loading, setLoading] = useState(true)
 
-  // Mock data - will be replaced with real data from API
-  const channels = [
-    { id: 'general', name: 'General', unread: 3, type: 'channel' },
-    { id: 'random', name: 'Random', unread: 0, type: 'channel' },
-    { id: 'design-team', name: 'Design Team', unread: 1, type: 'channel' },
-  ]
+  // Load initial data
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user) {
+        setLoading(false)
+        return
+      }
 
-  const directMessages = [
-    { id: 'alice', name: 'Alice Johnson', unread: 2, avatar: '/avatars/alice.jpg', online: true },
-    { id: 'bob', name: 'Bob Smith', unread: 0, avatar: '/avatars/bob.jpg', online: false },
-    { id: 'carol', name: 'Carol Davis', unread: 1, avatar: '/avatars/carol.jpg', online: true },
-  ]
+      try {
+        setLoading(true)
+        
+        // Load rooms and friends in parallel
+        const [roomsData, friendsData] = await Promise.all([
+          roomService.getRooms(),
+          friendsService.getFriends()
+        ])
+        
+        setRooms(roomsData)
+        setFriends(friendsData)
+      } catch (error) {
+        console.error('Error loading chat data:', error)
+        // Don't redirect on error, just show empty state
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [user, setRooms, setFriends])
+
+  const handleRoomSelect = (room: Room) => {
+    setCurrentRoom(room)
+    setCurrentChatUser(null)
+  }
+
+  const handleFriendSelect = (friend: Friend) => {
+    setCurrentChatUser(friend)
+    setCurrentRoom(null)
+  }
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-background via-card to-background dark relative">
@@ -95,29 +134,39 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                     <Plus className="w-4 h-4" />
                   </Button>
                 </div>
-                <div className="space-y-1">
-                  {channels.map((channel) => (
-                    <button
-                      key={channel.id}
-                      onClick={() => setSelectedRoom(channel.id)}
-                      className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group ${
-                        selectedRoom === channel.id
-                          ? 'bg-secondary/80 backdrop-blur-sm text-card-foreground shadow-sm'
-                          : 'text-card-foreground hover:bg-muted/40 hover:backdrop-blur-sm hover:shadow-md'
-                      }`}
-                    >
-                      <Hash className={`w-4 h-4 flex-shrink-0 transition-colors ${
-                        selectedRoom === channel.id ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
-                      }`} />
-                      <span className="flex-1 truncate font-medium">{channel.name}</span>
-                      {channel.unread > 0 && (
-                        <Badge variant="secondary" className="bg-destructive/90 text-destructive-foreground min-w-[20px] h-5 text-xs backdrop-blur-sm shadow-sm rounded-full">
-                          {channel.unread}
-                        </Badge>
-                      )}
-                    </button>
-                  ))}
-                </div>
+                
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {rooms.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-4">
+                        <Hash className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No rooms found</p>
+                      </div>
+                    ) : (
+                      rooms.map((room) => (
+                        <button
+                          key={room._id}
+                          onClick={() => handleRoomSelect(room)}
+                          className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group ${
+                            currentRoom?._id === room._id
+                              ? 'bg-secondary/80 backdrop-blur-sm text-card-foreground shadow-sm'
+                              : 'text-card-foreground hover:bg-muted/40 hover:backdrop-blur-sm hover:shadow-md'
+                          }`}
+                        >
+                          <Hash className={`w-4 h-4 flex-shrink-0 transition-colors ${
+                            currentRoom?._id === room._id ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+                          }`} />
+                          <span className="flex-1 truncate font-medium">{room.name}</span>
+                          {/* TODO: Add unread count from messages */}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Direct Messages Section */}
@@ -125,45 +174,105 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                 <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
                   Direct Messages
                 </h3>
-                <div className="space-y-1">
-                  {directMessages.map((dm) => (
-                    <button
-                      key={dm.id}
-                      onClick={() => setSelectedRoom(dm.id)}
-                      className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group ${
-                        selectedRoom === dm.id
-                          ? 'bg-secondary/80 backdrop-blur-sm text-card-foreground shadow-sm'
-                          : 'text-card-foreground hover:bg-muted/40 hover:backdrop-blur-sm hover:shadow-md'
-                      }`}
-                    >
-                      <div className="relative">
-                        <Avatar className="w-6 h-6 ring-2 ring-transparent group-hover:ring-border/50 transition-all">
-                          <AvatarImage src={dm.avatar} alt={dm.name} />
-                          <AvatarFallback className="text-xs bg-muted/50 backdrop-blur-sm">
-                            {dm.name.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        {dm.online && (
-                          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full shadow-sm" />
-                        )}
+                {loading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {friends.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-4">
+                        <Users className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No friends found</p>
                       </div>
-                      <span className="flex-1 truncate font-medium">{dm.name}</span>
-                      {dm.unread > 0 && (
-                        <Badge variant="secondary" className="bg-destructive/90 text-destructive-foreground min-w-[20px] h-5 text-xs backdrop-blur-sm shadow-sm">
-                          {dm.unread}
-                        </Badge>
-                      )}
-                    </button>
-                  ))}
-                </div>
+                    ) : (
+                      friends.map((friend) => (
+                        <button
+                          key={friend._id}
+                          onClick={() => handleFriendSelect(friend)}
+                          className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group ${
+                            currentChatUser?._id === friend._id
+                              ? 'bg-secondary/80 backdrop-blur-sm text-card-foreground shadow-sm'
+                              : 'text-card-foreground hover:bg-muted/40 hover:backdrop-blur-sm hover:shadow-md'
+                          }`}
+                        >
+                          <div className="relative">
+                            <Avatar className="w-6 h-6 ring-2 ring-transparent group-hover:ring-border/50 transition-all">
+                              <AvatarImage src={friend.profilePic} alt={friend.name} />
+                              <AvatarFallback className="text-xs bg-muted/50 backdrop-blur-sm">
+                                {friend.name.split(' ').map((n: string) => n[0]).join('')}
+                              </AvatarFallback>
+                            </Avatar>
+                            {/* TODO: Add online status from socket */}
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full shadow-sm" />
+                          </div>
+                          <span className="flex-1 truncate font-medium">{friend.name}</span>
+                          {/* TODO: Add unread count from DM messages */}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             </TabsContent>
 
             <TabsContent value="friends" className="p-4 m-0 h-full">
-              <div className="text-center text-muted-foreground py-8">
-                <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>Friends feature coming soon!</p>
-              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                      Friends ({friends.length})
+                    </h3>
+                    <Button size="sm" variant="ghost" className="w-6 h-6 p-0">
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  {friends.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                      <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No friends yet!</p>
+                      <p className="text-xs mt-1">Add some friends to start chatting</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {friends.map((friend) => (
+                        <div
+                          key={friend._id}
+                          className="flex items-center space-x-3 px-3 py-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-all duration-200"
+                        >
+                          <div className="relative">
+                            <Avatar className="w-8 h-8">
+                              <AvatarImage src={friend.profilePic} alt={friend.name} />
+                              <AvatarFallback className="text-sm bg-muted/50 backdrop-blur-sm">
+                                {friend.name.split(' ').map((n: string) => n[0]).join('')}
+                              </AvatarFallback>
+                            </Avatar>
+                            {/* TODO: Add online status */}
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full shadow-sm" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-card-foreground truncate">{friend.name}</p>
+                            <p className="text-xs text-muted-foreground">@{friend.username}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleFriendSelect(friend)}
+                            className="text-xs"
+                          >
+                            Message
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </TabsContent>
           </div>
         </Tabs>

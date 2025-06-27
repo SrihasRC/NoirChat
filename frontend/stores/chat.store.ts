@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { User } from '@/services/auth.service';
 import { Message, TypingUser, ConnectionStatus } from '@/services/socket.service';
 import { Friend } from '@/services/friends.service';
@@ -48,28 +47,62 @@ interface ChatState {
   clearChatData: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      isAuthenticated: false,
-      
-      setUser: (user) => set({ 
-        user, 
-        isAuthenticated: !!user 
-      }),
-      
-      logout: () => set({ 
-        user: null, 
-        isAuthenticated: false 
-      }),
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+// Helper functions for localStorage (SSR-safe)
+const getStoredUser = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
+};
+
+const getStoredToken = () => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('token');
+};
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  isAuthenticated: false,
+  
+  setUser: (user) => {
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('user');
     }
-  )
-);
+    
+    set({ 
+      user, 
+      isAuthenticated: !!user 
+    });
+  },
+  
+  logout: () => {
+    // Clear all storage
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    
+    set({ 
+      user: null, 
+      isAuthenticated: false 
+    });
+  },
+}));
+
+// Initialize auth state from localStorage when store is created (client-side only)
+if (typeof window !== 'undefined') {
+  const storedUser = getStoredUser();
+  const storedToken = getStoredToken();
+  
+  if (storedUser && storedToken) {
+    setTimeout(() => {
+      useAuthStore.getState().setUser(storedUser);
+    }, 0);
+  }
+}
 
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
@@ -169,3 +202,5 @@ export const useChatStore = create<ChatState>((set) => ({
     typingUsers: [],
   }),
 }));
+
+

@@ -38,8 +38,8 @@ class AuthService {
     const response = await api.post<AuthResponse>("/auth/sign-in", credentials);
     if (response.data.success) {
       Cookies.set("token", response.data.data.token, { expires: 7 });
-      localStorage.setItem("user", JSON.stringify(response.data.data.user));
       localStorage.setItem("token", response.data.data.token);
+      // Note: User will be set in Zustand store by the calling component
     }
     return response.data;
   }
@@ -51,8 +51,8 @@ class AuthService {
     );
     if (response.data.success) {
       Cookies.set("token", response.data.data.token, { expires: 7 });
-      localStorage.setItem("user", JSON.stringify(response.data.data.user));
       localStorage.setItem("token", response.data.data.token);
+      // Note: User will be set in Zustand store by the calling component
     }
     return response.data;
   }
@@ -61,6 +61,7 @@ class AuthService {
     Cookies.remove("token");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    // Note: Zustand logout will also be called by the calling component
   }
 
   getCurrentUser(): User | null {

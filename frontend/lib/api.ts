@@ -7,7 +7,8 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-    const token = Cookies.get('token');
+    // Try to get token from cookies first, then localStorage
+    const token = Cookies.get('token') || localStorage.getItem('token');
     if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -19,8 +20,24 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use((response) => {
     return response;
 }, (error) => {
+    // Only clear tokens on explicit authentication failures
     if (error.response && error.response.status === 401) {
-        window.location.href = '/login';
+        const token = Cookies.get('token') || localStorage.getItem('token');
+        const errorMessage = error.response.data?.message?.toLowerCase() || '';
+        
+        // Only clear tokens if the error explicitly indicates invalid/expired token
+        const isTokenError = errorMessage.includes('token') && 
+                            (errorMessage.includes('invalid') || 
+                             errorMessage.includes('expired') || 
+                             errorMessage.includes('malformed'));
+        
+        if (token && isTokenError && window.location.pathname !== '/') {
+            // Clear invalid tokens and redirect
+            Cookies.remove('token');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/';
+        }
     }
     return Promise.reject(error);
 });

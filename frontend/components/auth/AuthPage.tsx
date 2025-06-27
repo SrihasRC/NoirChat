@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { authService, type LoginCredentials, type RegisterCredentials } from '@/services/auth.service'
 import { useAuthStore } from '@/stores/chat.store'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -37,7 +38,24 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const { setUser } = useAuthStore()
+  const { setUser, isAuthenticated, user } = useAuthStore()
+  const router = useRouter()
+
+  // Redirect to chat if already logged in
+  useEffect(() => {
+    const checkAuth = () => {
+      const savedUser = localStorage.getItem('user')
+      const savedToken = localStorage.getItem('token')
+      
+      if ((isAuthenticated && user) || (savedUser && savedToken)) {
+        router.push('/chat')
+      }
+    }
+    
+    // Small delay to ensure proper hydration
+    const timer = setTimeout(checkAuth, 100)
+    return () => clearTimeout(timer)
+  }, [isAuthenticated, user, router])
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -64,8 +82,11 @@ export default function AuthPage() {
       const response = await authService.login(data as LoginCredentials)
       if (response.success) {
         setUser(response.data.user)
+        // Redirect to chat after successful login
+        router.push('/chat')
       }
     } catch (error: unknown) {
+      console.error('Login error:', error)
       const errorMessage = error instanceof Error 
         ? error.message 
         : (error as { response?: { data?: { message?: string } } }).response?.data?.message || 'Login failed'
