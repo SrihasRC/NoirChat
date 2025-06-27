@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Hash, Users, Settings, Bell, Plus, Loader2 } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Hash, Users, Settings, Bell, Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuthStore, useChatStore } from '@/stores/chat.store'
 import { roomService, Room } from '@/services/room.service'
 import { friendsService, Friend } from '@/services/friends.service'
+import { User } from '@/services/auth.service'
+import SearchModal from './SearchModal'
 
 interface ChatLayoutProps {
   children: React.ReactNode
@@ -70,6 +71,29 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
     setCurrentRoom(null)
   }
 
+  const handleUserSelect = (user: User) => {
+    // Convert User to Friend-like object for direct messaging
+    const friendUser: Friend = {
+      _id: user._id,
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      profilePic: user.profilePic
+    }
+    setCurrentChatUser(friendUser)
+    setCurrentRoom(null)
+  }
+
+  const handleAddFriend = async () => {
+    // Refresh friends list after adding
+    try {
+      const friendsData = await friendsService.getFriends()
+      setFriends(friendsData)
+    } catch (error) {
+      console.error('Error refreshing friends:', error)
+    }
+  }
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-background via-card to-background dark relative">
       {/* Background effects */}
@@ -93,13 +117,10 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
           </div>
           
           {/* Search */}
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-            <Input
-              placeholder="Search messages, friends, rooms..."
-              className="pl-10 bg-muted/30 backdrop-blur-sm border-border/50 text-foreground placeholder:text-muted-foreground focus:bg-muted/50 focus:border-primary/50 transition-all duration-200 shadow-sm"
-            />
-          </div>
+          <SearchModal
+            onUserSelect={handleUserSelect}
+            onAddFriend={handleAddFriend}
+          />
         </div>        
         {/* Navigation and Content */}
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'rooms' | 'friends')} className="flex flex-col flex-1">
@@ -108,13 +129,13 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
             <TabsList className="grid w-full grid-cols-2 bg-muted/50 border-border">
               <TabsTrigger 
                 value="rooms" 
-                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground text-muted-foreground"
+                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground text-muted-foreground cursor-pointer"
               >
                 Rooms
               </TabsTrigger>
               <TabsTrigger 
                 value="friends" 
-                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground text-muted-foreground"
+                className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground text-muted-foreground cursor-pointer"
               >
                 Friends
               </TabsTrigger>
@@ -151,7 +172,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                         <button
                           key={room._id}
                           onClick={() => handleRoomSelect(room)}
-                          className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group ${
+                          className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group cursor-pointer ${
                             currentRoom?._id === room._id
                               ? 'bg-secondary/80 backdrop-blur-sm text-card-foreground shadow-sm'
                               : 'text-card-foreground hover:bg-muted/40 hover:backdrop-blur-sm hover:shadow-md'
@@ -190,7 +211,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                         <button
                           key={friend._id}
                           onClick={() => handleFriendSelect(friend)}
-                          className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group ${
+                          className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group cursor-pointer ${
                             currentChatUser?._id === friend._id
                               ? 'bg-secondary/80 backdrop-blur-sm text-card-foreground shadow-sm'
                               : 'text-card-foreground hover:bg-muted/40 hover:backdrop-blur-sm hover:shadow-md'

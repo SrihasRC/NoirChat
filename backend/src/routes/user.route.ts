@@ -28,13 +28,13 @@ userRouter.put("/change-password", authMiddleware, changePassword);
 // @ts-ignore
 userRouter.delete("/account", authMiddleware, deleteUserAccount);
 
-// Get user by username
-// @ts-ignore
-userRouter.get("/:username", authMiddleware, getUserByUsername);
-
 // Search users
 // @ts-ignore
 userRouter.get("/search", authMiddleware, searchUsers);
+
+// Get user by username  
+// @ts-ignore
+userRouter.get("/:username", authMiddleware, getUserByUsername);
 
 // Get user activity status
 // @ts-ignore
