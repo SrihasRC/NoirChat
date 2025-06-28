@@ -56,12 +56,21 @@ export const joinRoom = async (req: Req, res: Res, next: Next) => {
             throw error;
         }
 
-        if (room.members.includes(userId.toString())) {
-            return res.status(200).json({ success: true, message: "Already a member of the room" });
+        // Check if user is already a member (using the new structure)
+        const existingMember = room.members.find(member => member.user.toString() === userId.toString());
+        if (existingMember) {
+            return res.status(200).json({ success: true, message: "Already a member of the room", data: room });
         }
 
-        room.members.push(userId);
+        // Add user as a new member with the proper structure
+        room.members.push({
+            user: userId,
+            role: "member",
+            joinedAt: new Date()
+        });
+        
         await room.save();
+        await room.populate('creator', 'username name email profilePic');
 
         return res.status(200).json({ success: true, message: "Joined room successfully", data: room });
     } catch (error) {
