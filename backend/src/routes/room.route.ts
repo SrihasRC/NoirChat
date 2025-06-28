@@ -7,7 +7,8 @@ import {
   getRoomMessages,
   getRooms,
   updateRoom,
-  deleteRoom
+  deleteRoom,
+  searchRooms
 } from "../controllers/room.controller.ts";
 import authMiddleware from "../middleware/auth.middleware.ts";
 
@@ -32,6 +33,10 @@ roomRouter.post("/message", authMiddleware, sendRoomMessage);
 // Get messages from a specific room
 // @ts-ignore
 roomRouter.get("/:roomId/messages", authMiddleware, getRoomMessages);
+
+// Search for rooms
+// @ts-ignore
+roomRouter.get("/search", authMiddleware, searchRooms);
 
 // Get all rooms for the authenticated user
 // @ts-ignore

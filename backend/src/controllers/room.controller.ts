@@ -262,3 +262,44 @@ export const deleteRoom = async (req: Req, res: Res, next: Next) => {
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
+
+export const searchRooms = async (req: Req, res: Res, next: Next) => {
+    try {
+        const { query } = req.query;
+        const userId = req.user._id;
+
+        if (!query || typeof query !== 'string' || query.trim().length < 2) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Search query must be at least 2 characters long" 
+            });
+        }
+
+        // Search for public rooms that the user is not already a member of
+        const rooms = await Room.find({
+            $and: [
+                { isPrivate: false }, // Only public rooms
+                { "members.user": { $ne: userId } }, // Not already a member
+                {
+                    $or: [
+                        { name: { $regex: query.trim(), $options: 'i' } },
+                        { description: { $regex: query.trim(), $options: 'i' } }
+                    ]
+                }
+            ]
+        })
+        .populate('creator', 'username name email profilePic')
+        .populate('members.user', 'username name profilePic')
+        .sort({ createdAt: -1 })
+        .limit(20); // Limit results to prevent performance issues
+
+        return res.status(200).json({ 
+            success: true, 
+            message: "Rooms search completed", 
+            data: rooms 
+        });
+    } catch (error) {
+        console.error("Error in searchRooms:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
