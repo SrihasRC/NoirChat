@@ -72,6 +72,13 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
     setCurrentChatUser(null)
   }
 
+  const handleRoomJoined = (room: Room) => {
+    // Refresh rooms list and select the joined room
+    loadData()
+    setCurrentRoom(room)
+    setCurrentChatUser(null)
+  }
+
   const handleFriendSelect = (friend: Friend) => {
     setCurrentChatUser(friend)
     setCurrentRoom(null)
@@ -125,6 +132,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
           {/* Search */}
           <SearchModal
             onUserSelect={handleUserSelect}
+            onRoomSelect={handleRoomJoined}
             onAddFriend={handleAddFriend}
           />
         </div>        

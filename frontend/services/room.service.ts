@@ -69,6 +69,11 @@ class RoomService {
   async deleteRoom(roomId: string): Promise<void> {
     await api.delete(`/rooms/${roomId}`);
   }
+
+  async searchRooms(query: string): Promise<Room[]> {
+    const response = await api.get(`/rooms/search?query=${encodeURIComponent(query)}`);
+    return response.data.data;
+  }
 }
 
 export const roomService = new RoomService();
