@@ -1,6 +1,7 @@
 import { Req, Res, Next } from "../types/express.ts";
 import Room from "../models/room.model.ts";
 import Message from "../models/message.model.ts";
+import { getSocketIO } from "../socket/socket.ts";
 
 export const createRoom = async (req: Req, res: Res, next: Next) => {
     try {
@@ -30,6 +31,7 @@ export const createRoom = async (req: Req, res: Res, next: Next) => {
 
         await room.save();
         await room.populate('creator', 'username email name profilePic');
+        await room.populate('members.user', 'username name email profilePic');
 
         return res.status(201).json({ success: true, message: "Room created successfully", data: room });
     } catch (error) {
@@ -71,6 +73,7 @@ export const joinRoom = async (req: Req, res: Res, next: Next) => {
         
         await room.save();
         await room.populate('creator', 'username name email profilePic');
+        await room.populate('members.user', 'username name email profilePic');
 
         return res.status(200).json({ success: true, message: "Joined room successfully", data: room });
     } catch (error) {
@@ -132,7 +135,9 @@ export const sendRoomMessage = async (req: Req, res: Res, next: Next) => {
             throw error;
         }
 
-        if (!room.members.includes(userId.toString())) {
+        // Check if the user is a member of the room using the new structure
+        const isMember = room.members.some(member => member.user.toString() === userId.toString());
+        if (!isMember) {
             const error: any = new Error("You are not a member of this room");
             error.status = 403;
             throw error;
@@ -145,6 +150,20 @@ export const sendRoomMessage = async (req: Req, res: Res, next: Next) => {
         });
 
         await message.save();
+        await message.populate('sender', 'username name profilePic');
+
+        // Emit socket event for real-time message delivery
+        const io = getSocketIO();
+        if (io) {
+            io.to(`room_${roomId}`).emit("new_room_message", {
+                _id: message._id,
+                content: message.content,
+                room: message.room,
+                sender: message.sender,
+                createdAt: message.createdAt,
+                updatedAt: message.updatedAt
+            });
+        }
 
         return res.status(200).json({ success: true, message: "Message sent successfully", data: message });
     } catch (error) {
@@ -171,7 +190,9 @@ export const getRoomMessages = async (req: Req, res: Res, next: Next) => {
             throw error;
         }
 
-        if (!room.members.includes(userId.toString())) {
+        // Check if the user is a member of the room using the new structure
+        const isMember = room.members.some(member => member.user.toString() === userId.toString());
+        if (!isMember) {
             const error: any = new Error("You are not a member of this room");
             error.status = 403;
             throw error;
@@ -193,7 +214,10 @@ export const getRooms = async (req: Req, res: Res, next: Next) => {
 
         const rooms = await Room.find({ 
             "members.user": userId 
-        }).populate("creator", "username name email profilePic").sort({ createdAt: -1 });
+        })
+        .populate("creator", "username name email profilePic")
+        .populate("members.user", "username name email profilePic")
+        .sort({ createdAt: -1 });
 
         return res.status(200).json({ success: true, message: "Rooms retrieved successfully", data: rooms });
     } catch (error) {

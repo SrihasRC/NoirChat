@@ -9,6 +9,10 @@ interface AuthenticatedSocket extends Socket {
   username?: string;
 }
 
+let ioInstance: Server | null = null;
+
+export const getSocketIO = () => ioInstance;
+
 export const initializeSocket = (server: HttpServer) => {
   const io = new Server(server, {
     cors: {
@@ -16,6 +20,8 @@ export const initializeSocket = (server: HttpServer) => {
       credentials: true,
     },
   });
+
+  ioInstance = io;
 
   // Authentication middleware for socket connections
   io.use(async (socket: any, next) => {
