@@ -135,7 +135,6 @@ export const sendRoomMessage = async (req: Req, res: Res, next: Next) => {
             throw error;
         }
 
-        // Check if the user is a member of the room using the new structure
         const isMember = room.members.some(member => member.user.toString() === userId.toString());
         if (!isMember) {
             const error: any = new Error("You are not a member of this room");
