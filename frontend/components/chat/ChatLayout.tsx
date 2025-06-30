@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Hash, Users, Settings, Bell, Plus, Loader2 } from 'lucide-react'
+import { Hash, Users, Bell, Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -11,6 +11,7 @@ import { friendsService, Friend } from '@/services/friends.service'
 import { User } from '@/services/auth.service'
 import SearchModal from './SearchModal'
 import CreateRoomModal from './CreateRoomModal'
+import SettingsModal from './SettingsModal'
 
 interface ChatLayoutProps {
   children: React.ReactNode
@@ -77,6 +78,12 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
     loadData()
     setCurrentRoom(room)
     setCurrentChatUser(null)
+  }
+
+  const handleUserUpdate = () => {
+    // Refresh user data after profile update
+    // This could be expanded to refresh the user in the auth store
+    loadData()
   }
 
   const handleFriendSelect = (friend: Friend) => {
@@ -330,9 +337,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
               <Button size="sm" variant="ghost" className="w-8 h-8 p-0 hover:bg-muted/30 hover:backdrop-blur-sm transition-all">
                 <Bell className="w-4 h-4" />
               </Button>
-              <Button size="sm" variant="ghost" className="w-8 h-8 p-0 hover:bg-muted/30 hover:backdrop-blur-sm transition-all">
-                <Settings className="w-4 h-4" />
-              </Button>
+              <SettingsModal onUserUpdate={handleUserUpdate} />
             </div>
           </div>
         </div>

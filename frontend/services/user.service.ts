@@ -3,6 +3,8 @@ import { User } from './auth.service';
 
 export interface UpdateProfileData {
   name?: string;
+  username?: string;
+  email?: string;
   bio?: string;
   profilePic?: string;
 }
