@@ -6,7 +6,6 @@ export const getUserProfile = async (req: Req, res: Res, next: Next) => {
   try {
     const userId = req.user._id;
 
-    // Find the user by ID and select fields to return
     const user = await User.findById(userId).select("username name email");
 
     if (!user) {
@@ -27,19 +26,44 @@ export const getUserProfile = async (req: Req, res: Res, next: Next) => {
 export const updateUserProfile = async (req: Req, res: Res, next: Next) => {
   try {
     const userId = req.user._id;
-    const { name, bio, profilePic } = req.body;
+    const { name, username, email, bio, profilePic } = req.body;
 
-    if (!name && !bio) {
-      const error: any = new Error("At least one field (name or bio) is required to update");
+    if (!name && !username && !email && !bio && !profilePic) {
+      const error: any = new Error("At least one field is required to update");
       error.status = 400;
       throw error;
     }
 
+    if (username) {
+      const existingUser = await User.findOne({ username, _id: { $ne: userId } });
+      if (existingUser) {
+        const error: any = new Error("Username is already taken");
+        error.status = 409;
+        throw error;
+      }
+    }
+
+    if (email) {
+      const existingUser = await User.findOne({ email, _id: { $ne: userId } });
+      if (existingUser) {
+        const error: any = new Error("Email is already taken");
+        error.status = 409;
+        throw error;
+      }
+    }
+
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (bio !== undefined) updateData.bio = bio;
+    if (profilePic !== undefined) updateData.profilePic = profilePic;
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { name, bio, profilePic },
+      updateData,
       { new: true, runValidators: true }
-    ).select("username name email");
+    ).select("-password");
 
     if (!updatedUser) {
       const error: any = new Error("User not found");
