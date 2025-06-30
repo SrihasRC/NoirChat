@@ -9,6 +9,7 @@ import { useAuthStore, useChatStore } from '@/stores/chat.store'
 import { roomService, Room } from '@/services/room.service'
 import { friendsService, Friend } from '@/services/friends.service'
 import { User } from '@/services/auth.service'
+import { socketService } from '@/services/socket.service'
 import SearchModal from './SearchModal'
 import CreateRoomModal from './CreateRoomModal'
 import SettingsModal from './SettingsModal'
@@ -63,32 +64,44 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
     loadData()
   }, [loadData])
 
+  // Initialize socket connection when user is authenticated
+  useEffect(() => {
+    if (user) {
+      socketService.connect()
+    }
+    
+    return () => {
+      if (user) {
+        socketService.disconnect()
+      }
+    }
+  }, [user])
+
   const handleRoomCreated = () => {
     // Refresh the rooms list after a new room is created
     loadData()
   }
 
   const handleRoomSelect = (room: Room) => {
-    setCurrentRoom(room)
     setCurrentChatUser(null)
+    setCurrentRoom(room)
   }
 
   const handleRoomJoined = (room: Room) => {
     // Refresh rooms list and select the joined room
     loadData()
-    setCurrentRoom(room)
     setCurrentChatUser(null)
+    setCurrentRoom(room)
   }
 
   const handleUserUpdate = () => {
     // Refresh user data after profile update
-    // This could be expanded to refresh the user in the auth store
     loadData()
   }
 
   const handleFriendSelect = (friend: Friend) => {
-    setCurrentChatUser(friend)
     setCurrentRoom(null)
+    setCurrentChatUser(friend)
   }
 
   const handleUserSelect = (user: User) => {
@@ -100,8 +113,8 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
       email: user.email,
       profilePic: user.profilePic
     }
-    setCurrentChatUser(friendUser)
     setCurrentRoom(null)
+    setCurrentChatUser(friendUser)
   }
 
   const handleAddFriend = async () => {
@@ -292,7 +305,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                                 {friend.name.split(' ').map((n: string) => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>
-                            {/* TODO: Add online status */}
+                            {/* Online status indicator */}
                             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full shadow-sm" />
                           </div>
                           <div className="flex-1 min-w-0">

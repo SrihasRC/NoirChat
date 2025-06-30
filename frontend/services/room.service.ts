@@ -1,13 +1,20 @@
 import api from '@/lib/api';
 import { User } from '@/services/auth.service';
 import { Message } from '@/services/socket.service';
+import { socketService } from '@/services/socket.service';
+
+export interface RoomMember {
+  user: User | string;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt?: string;
+}
 
 export interface Room {
   _id: string;
   name: string;
   description?: string;
   creator: User;
-  members: string[];
+  members: RoomMember[];
   isPrivate?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -47,7 +54,12 @@ class RoomService {
   }
 
   async sendRoomMessage(data: SendRoomMessageData): Promise<Message> {
+    // Send via API for persistence
     const response = await api.post('/rooms/message', data);
+    
+    // Also emit via socket for real-time delivery
+    socketService.sendRoomMessage(data.roomId, data.content);
+    
     return response.data.data;
   }
 

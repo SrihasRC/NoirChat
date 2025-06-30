@@ -12,13 +12,12 @@ import { socketService, Message } from '@/services/socket.service'
 export default function ChatInterface() {
   const [message, setMessage] = useState('')
   
-  const { 
-    messages, 
-    currentRoom, 
-    currentChatUser, 
-    setMessages,
-    addMessage 
-  } = useChatStore()
+  // Use explicit selectors to ensure proper re-rendering
+  const messages = useChatStore(state => state.messages)
+  const currentRoom = useChatStore(state => state.currentRoom) 
+  const currentChatUser = useChatStore(state => state.currentChatUser)
+  const setMessages = useChatStore(state => state.setMessages)
+  const addMessage = useChatStore(state => state.addMessage)
 
   // Load messages when room or chat user changes
   useEffect(() => {
@@ -291,10 +290,33 @@ export default function ChatInterface() {
           </div>
           
           <div className="p-4 space-y-3">
-            <div className="text-center text-muted-foreground py-8">
-              <Users2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p>Member details coming soon!</p>
-            </div>
+            {currentRoom.members.map((member, index) => {
+              const memberUser = typeof member === 'object' && 'user' in member 
+                ? (typeof member.user === 'object' ? member.user : null)
+                : null;
+              const memberRole = typeof member === 'object' && 'role' in member ? member.role : 'member';
+              
+              return (
+                <div key={index} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/20 transition-colors">
+                  <Avatar className="w-8 h-8">
+                    <AvatarFallback className="text-xs bg-gradient-to-br from-muted/50 to-muted/30">
+                      {memberUser?.name 
+                        ? memberUser.name.split(' ').map((n: string) => n[0]).join('')
+                        : 'U'
+                      }
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-card-foreground truncate">
+                      {memberUser?.name || 'Unknown User'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {memberRole === 'owner' ? 'Owner' : memberRole === 'admin' ? 'Admin' : 'Member'}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

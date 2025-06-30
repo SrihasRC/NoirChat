@@ -1,6 +1,6 @@
 'use client'
 
-import { useAuthStore } from '@/stores/chat.store'
+import { useAuthStore, useChatStore } from '@/stores/chat.store'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ChatLayout from '@/components/chat/ChatLayout'
@@ -8,6 +8,7 @@ import ChatInterface from '@/components/chat/ChatInterface'
 
 export default function ChatPage() {
   const { isAuthenticated, user, setUser } = useAuthStore()
+  const { currentRoom, currentChatUser } = useChatStore()
   const [isInitialized, setIsInitialized] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const router = useRouter()
@@ -54,9 +55,12 @@ export default function ChatPage() {
     )
   }
 
+  // Create a stable key that changes when the selected chat changes
+  const chatKey = `chat-${currentRoom?._id || 'room-none'}-${currentChatUser?._id || 'user-none'}`
+
   return (
     <ChatLayout>
-      <ChatInterface />
+      <ChatInterface key={chatKey} />
     </ChatLayout>
   )
 }
