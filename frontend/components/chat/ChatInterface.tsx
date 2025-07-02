@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Send, Paperclip, Smile, Hash, Users2, MoreHorizontal, User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { socketService, Message } from '@/services/socket.service'
 
 export default function ChatInterface() {
   const [message, setMessage] = useState('')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   
   // Use explicit selectors to ensure proper re-rendering
   const messages = useChatStore(state => state.messages)
@@ -18,6 +19,15 @@ export default function ChatInterface() {
   const currentChatUser = useChatStore(state => state.currentChatUser)
   const setMessages = useChatStore(state => state.setMessages)
   const addMessage = useChatStore(state => state.addMessage)
+
+  // Auto-scroll to bottom when messages change
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   // Load messages when room or chat user changes
   useEffect(() => {
@@ -230,6 +240,8 @@ export default function ChatInterface() {
               )
             })
           )}
+          {/* Scroll target for auto-scroll */}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Message Input */}
