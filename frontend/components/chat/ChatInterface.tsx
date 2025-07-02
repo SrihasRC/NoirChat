@@ -5,7 +5,7 @@ import { Send, Paperclip, Smile, Hash, Users2, MoreHorizontal, User } from 'luci
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useChatStore } from '@/stores/chat.store'
+import { useChatStore, useAuthStore } from '@/stores/chat.store'
 import { roomService } from '@/services/room.service'
 import { socketService, Message } from '@/services/socket.service'
 
@@ -14,11 +14,13 @@ export default function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
   // Use explicit selectors to ensure proper re-rendering
+  const { user } = useAuthStore()
   const messages = useChatStore(state => state.messages)
   const currentRoom = useChatStore(state => state.currentRoom) 
   const currentChatUser = useChatStore(state => state.currentChatUser)
   const setMessages = useChatStore(state => state.setMessages)
   const addMessage = useChatStore(state => state.addMessage)
+
 
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -50,13 +52,11 @@ export default function ChatInterface() {
     loadMessages()
   }, [currentRoom, currentChatUser, setMessages])
 
-  // Connect to socket for real-time messages
   useEffect(() => {
     if (currentRoom) {
       socketService.joinRoom(currentRoom._id)
       
       const unsubscribe = socketService.onNewMessage((newMessage: Message) => {
-        // Only add messages for the current room
         if (newMessage.room === currentRoom._id) {
           addMessage(newMessage)
         }
@@ -215,26 +215,42 @@ export default function ChatInterface() {
                     </div>
                   )}
                   
-                  <div className="flex space-x-3 hover:bg-muted/20 hover:backdrop-blur-sm p-2 -m-2 rounded-lg group transition-all duration-200">
-                    <Avatar className="w-10 h-10 flex-shrink-0 ring-2 ring-transparent group-hover:ring-border/30 transition-all">
-                      <AvatarFallback className="text-sm bg-gradient-to-br from-muted/50 to-muted/30 backdrop-blur-sm">
-                        {msg.sender.name.split(' ').map((n: string) => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
+                  <div className={`flex hover:bg-muted/20 hover:backdrop-blur-sm p-2 -m-2 rounded-lg group transition-all duration-200 ${msg.sender._id === user?._id ? 'justify-end' : 'space-x-3'}`}>
+                    {msg.sender._id !== user?._id && (
+                      <Avatar className="w-10 h-10 flex-shrink-0 ring-2 ring-transparent group-hover:ring-border/30 transition-all mr-3">
+                        <AvatarFallback className="text-sm bg-gradient-to-br from-muted/50 to-muted/30 backdrop-blur-sm">
+                          {msg.sender.name.split(' ').map((n: string) => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                     
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline space-x-2 mb-1">
-                        <span className="font-medium text-card-foreground">
-                          {msg.sender.name}
-                        </span>
+                    <div className={`flex-1 min-w-0 ${msg.sender._id === user?._id ? 'flex flex-col items-end' : ''}`}>
+                      <div className={`flex items-baseline mb-1 ${msg.sender._id === user?._id ? 'justify-end' : ''}`}>
+                        {msg.sender._id === user?._id ? (
+                          <span className="text-xs text-muted-foreground mr-2">
+                            You
+                          </span>
+                        ) : (
+                          <span className="font-medium text-card-foreground mr-2">
+                            {msg.sender.name}
+                          </span>
+                        )}
                         <span className="text-xs text-muted-foreground">
                           {formatTime(msg.createdAt || msg.timestamp || '')}
                         </span>
                       </div>
-                      <div className="text-foreground leading-relaxed">
+                      <div className={`leading-relaxed text-foreground max-w-[75%] ${msg.sender._id === user?._id ? 'text-right' : ''}`}>
                         {msg.content}
                       </div>
                     </div>
+                    
+                    {msg.sender._id === user?._id && (
+                      <Avatar className="w-10 h-10 flex-shrink-0 ring-2 ring-transparent group-hover:ring-border/30 transition-all ml-3">
+                        <AvatarFallback className="text-sm bg-gradient-to-br from-muted/50 to-muted/30 backdrop-blur-sm">
+                          {msg.sender.name.split(' ').map((n: string) => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
                 </div>
               )
@@ -279,7 +295,7 @@ export default function ChatInterface() {
             <Button 
               onClick={handleSendMessage}
               disabled={!message.trim()}
-              className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-primary-foreground mb-2 shadow-lg backdrop-blur-sm transition-all duration-200 disabled:opacity-50"
+              className="hover:from-primary/90 hover:to-secondary/90 text-primary-foreground mb-1 shadow-lg backdrop-blur-sm transition-all duration-200 disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
             </Button>

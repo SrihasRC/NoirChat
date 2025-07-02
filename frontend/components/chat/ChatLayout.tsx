@@ -141,8 +141,8 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
         {/* App Header */}
         <div className="flex-shrink-0 p-4 border-b border-border/50 bg-gradient-to-r from-card/80 to-card/60 backdrop-blur-sm">
           <div className="flex items-center space-x-3 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary via-secondary to-accent rounded-lg flex items-center justify-center shadow-lg">
-              <Hash className="w-4 h-4 text-muted-foreground drop-shadow-sm" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+              <Hash className="w-4 h-4 text-muted-foreground" />
             </div>
             <h1 className="font-bold text-xl bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
               NoirChat
@@ -193,7 +193,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="space-y-1 max-h-46 overflow-y-auto">
+                  <div className="space-y-1 max-h-46 overflow-y-auto pr-2">
                     {rooms.length === 0 ? (
                       <div className="text-center text-muted-foreground py-4">
                         <Hash className="w-6 h-6 mx-auto mb-2 opacity-50" />
@@ -232,7 +232,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                  <div className="space-y-1 max-h-48 overflow-y-auto pr-2">
                     {friends.length === 0 ? (
                       <div className="text-center text-muted-foreground py-4">
                         <Users className="w-6 h-6 mx-auto mb-2 opacity-50" />
