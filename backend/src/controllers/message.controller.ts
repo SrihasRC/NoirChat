@@ -1,6 +1,7 @@
 import Message from "../models/message.model.ts";
 import { Req, Res, Next } from "../types/express.ts";
 import User from "../models/user.model.ts";
+import { getSocketIO } from "../socket/socket.ts";
 
 export const sendDirectMessage = async (req: Req, res: Res, next: Next) => {
     try {
@@ -32,7 +33,18 @@ export const sendDirectMessage = async (req: Req, res: Res, next: Next) => {
 
         await message.save();
 
-        return res.status(201).json({ success: true, message: "Message sent successfully", data: message });
+        // Populate sender and receiver information for the response
+        const populatedMessage = await Message.findById(message._id)
+            .populate('sender', 'username name')
+            .populate('receiver', 'username name');
+
+        // Emit socket event to the receiver
+        const io = getSocketIO();
+        if (io) {
+            io.to(`user_${receiver._id}`).emit("new_direct_message", populatedMessage);
+        }
+
+        return res.status(201).json({ success: true, message: "Message sent successfully", data: populatedMessage });
     } catch (error) {
         console.error("Error in sendDirectMessage:", error);
         return res.status(500).json({ success: false, message: "Internal server error" });
@@ -62,7 +74,7 @@ export const getConversation = async (req: Req, res: Res, next: Next) => {
                 { sender: userId, receiver: otherUser._id },
                 { sender: otherUser._id, receiver: userId }
             ]
-        }).sort({ createdAt: -1 }).populate("sender receiver", "username name");
+        }).sort({ createdAt: 1 }).populate("sender receiver", "username name");
 
         // Mark messages as read
         await Message.updateMany(

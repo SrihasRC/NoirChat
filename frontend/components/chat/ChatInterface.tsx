@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useChatStore, useAuthStore } from '@/stores/chat.store'
 import { roomService } from '@/services/room.service'
+import { messageService } from '@/services/message.service'
 import { socketService, Message } from '@/services/socket.service'
 
 export default function ChatInterface() {
@@ -20,8 +21,7 @@ export default function ChatInterface() {
   const currentChatUser = useChatStore(state => state.currentChatUser)
   const setMessages = useChatStore(state => state.setMessages)
   const addMessage = useChatStore(state => state.addMessage)
-
-
+  
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -37,13 +37,27 @@ export default function ChatInterface() {
       if (currentRoom) {
         try {
           const roomMessages = await roomService.getRoomMessages(currentRoom._id)
-          setMessages(roomMessages)
+          // Sort messages by date
+          const sortedMessages = [...roomMessages].sort((a, b) => 
+            new Date(a.createdAt || a.timestamp || '').getTime() - 
+            new Date(b.createdAt || b.timestamp || '').getTime()
+          )
+          setMessages(sortedMessages)
         } catch (error) {
           console.error('Error loading room messages:', error)
         }
       } else if (currentChatUser) {
-        // TODO: Load DM messages when DM API is available
-        setMessages([])
+        try {
+          const directMessages = await messageService.getConversation(currentChatUser.username)
+          // Sort direct messages by date
+          const sortedMessages = [...directMessages].sort((a, b) => 
+            new Date(a.createdAt || a.timestamp || '').getTime() - 
+            new Date(b.createdAt || b.timestamp || '').getTime()
+          )
+          setMessages(sortedMessages)
+        } catch (error) {
+          console.error('Error loading direct messages:', error)
+        }
       } else {
         setMessages([])
       }
@@ -53,21 +67,54 @@ export default function ChatInterface() {
   }, [currentRoom, currentChatUser, setMessages])
 
   useEffect(() => {
+    // Set up listeners for socket events
+    let unsubscribe: () => void;
+    
     if (currentRoom) {
       socketService.joinRoom(currentRoom._id)
       
-      const unsubscribe = socketService.onNewMessage((newMessage: Message) => {
+      unsubscribe = socketService.onNewMessage((newMessage: Message) => {
         if (newMessage.room === currentRoom._id) {
           addMessage(newMessage)
         }
       })
-      
-      return () => {
-        unsubscribe()
-        socketService.leaveRoom(currentRoom._id)
-      }
+    } else if (currentChatUser && user) {
+      // Set up listener for direct messages
+      unsubscribe = socketService.onNewMessage((newMessage: Message) => {
+        // Check if message is from or to the current chat user
+        const isRelevantMessage = (
+          // Message is from current chat user to current user
+          (newMessage.sender._id === currentChatUser._id && 
+           newMessage.receiver && newMessage.receiver._id === user._id) ||
+          // Message is from current user to current chat user (when it comes back from server)
+          (newMessage.sender._id === user._id && 
+           newMessage.receiver && newMessage.receiver._id === currentChatUser._id)
+        );
+        
+        if (isRelevantMessage) {
+          // Remove any temporary message with same content from sender and add the confirmed message
+          const updatedMessages = messages.filter((m: Message) => 
+            !(m.content === newMessage.content && 
+              m._id.toString().startsWith('temp-') &&
+              m.sender._id === newMessage.sender._id)
+          );
+          
+          // Add the confirmed message if it's not already there
+          const messageExists = updatedMessages.some((m: Message) => m._id === newMessage._id);
+          if (!messageExists) {
+            setMessages([...updatedMessages, newMessage]);
+          } else {
+            setMessages(updatedMessages);
+          }
+        }
+      })
     }
-  }, [currentRoom, addMessage])
+    
+    return () => {
+      if (unsubscribe) unsubscribe()
+      if (currentRoom) socketService.leaveRoom(currentRoom._id)
+    }
+  }, [currentRoom, currentChatUser, user, setMessages, addMessage, messages])
 
   const handleSendMessage = async () => {
     if (message.trim() && currentRoom) {
@@ -80,10 +127,47 @@ export default function ChatInterface() {
       } catch (error) {
         console.error('Error sending message:', error)
       }
-    } else if (message.trim() && currentChatUser) {
-      // TODO: Implement DM sending when API is available
-      console.log('DM sending not implemented yet')
+    } else if (message.trim() && currentChatUser && user) {
+      const messageContent = message.trim()
+      
+      // Create a temporary message to display immediately
+      const tempMessage: Message = {
+        _id: `temp-${Date.now()}`,
+        sender: {
+          _id: user._id,
+          username: user.username,
+          name: user.name
+        },
+        content: messageContent,
+        messageType: 'text',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        timestamp: new Date().toISOString()
+      }
+      
+      if (currentChatUser) {
+        tempMessage.receiver = {
+          _id: currentChatUser._id,
+          username: currentChatUser.username,
+          name: currentChatUser.name
+        }
+      }
+      
+      // Add optimistic message to state
+      addMessage(tempMessage)
       setMessage('')
+      
+      // Send the actual message to the server
+      try {
+        await messageService.sendDirectMessage({
+          receiverUsername: currentChatUser.username,
+          content: messageContent,
+          messageType: 'text'
+        })
+      } catch (error) {
+        console.error('Error sending direct message:', error)
+        // Could add message retry or error indicator here
+      }
     }
   }
 
