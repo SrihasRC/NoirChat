@@ -8,21 +8,26 @@ export const createRoom = async (req: Req, res: Res, next: Next) => {
         const { name, members, description, isPrivate } = req.body;
         const creatorId = req.user._id;
 
-        if (!name || !members || members.length === 0) {
-            const error: any = new Error("Room name and members are required");
+        if (!name) {
+            const error: any = new Error("Room name is required");
             error.status = 400;
             throw error;
         }
 
-        // Ensure the creator is included in the members
-        const membersList = [...new Set([...members, creatorId.toString()])];
+        // Members array can be empty (creator will be added automatically)
+        const membersArray = members || [];
+
+        // Ensure the creator is included in the members (convert all to strings for comparison)
+        const creatorIdStr = creatorId.toString();
+        const memberStrings = membersArray.map((id: any) => id.toString());
+        const membersList = [...new Set([...memberStrings, creatorIdStr])];
 
         const room = new Room({
             name,
             description: description || "",
             members: membersList.map(memberId => ({
                 user: memberId,
-                role: memberId === creatorId.toString() ? "owner" : "member"
+                role: memberId === creatorIdStr ? "owner" : "member"
             })),
             creator: creatorId,
             admins: [creatorId],
@@ -218,7 +223,25 @@ export const getRooms = async (req: Req, res: Res, next: Next) => {
         .populate("members.user", "username name email profilePic")
         .sort({ createdAt: -1 });
 
-        return res.status(200).json({ success: true, message: "Rooms retrieved successfully", data: rooms });
+        // Clean up duplicate members in existing rooms (temporary fix for legacy data)
+        const cleanedRooms = rooms.map(room => {
+            const seenUsers = new Set();
+            const uniqueMembers = room.members.filter(member => {
+                const userIdStr = member.user._id.toString();
+                if (seenUsers.has(userIdStr)) {
+                    return false;
+                }
+                seenUsers.add(userIdStr);
+                return true;
+            });
+            
+            return {
+                ...room.toObject(),
+                members: uniqueMembers
+            };
+        });
+
+        return res.status(200).json({ success: true, message: "Rooms retrieved successfully", data: cleanedRooms });
     } catch (error) {
         console.error("Error in getRooms:", error);
         return res.status(500).json({ success: false, message: "Internal server error" });

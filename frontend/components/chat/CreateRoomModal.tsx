@@ -89,14 +89,13 @@ export default function CreateRoomModal({ onRoomCreated }: CreateRoomModalProps)
     try {
       setIsLoading(true)
       
-      // Create room with current user and selected members
+      // Create room with selected members (backend will add creator automatically)
       const memberIds = selectedMembers.map(member => member._id)
-      const allMembers = user?._id ? [user._id, ...memberIds] : memberIds
       
       const roomData = {
         name: formData.name.toLowerCase(),
         description: formData.description.trim() || undefined,
-        members: allMembers,
+        members: memberIds, // Don't include creator, backend handles this
         isPrivate: formData.isPrivate
       }
 
