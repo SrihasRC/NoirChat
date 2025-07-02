@@ -202,7 +202,7 @@ export const getRoomMessages = async (req: Req, res: Res, next: Next) => {
             throw error;
         }
 
-        const messages = await Message.find({ room: roomId }).populate("sender", "username name").sort({ createdAt: -1 });
+        const messages = await Message.find({ room: roomId }).populate("sender", "username name").sort({ createdAt: 1 });
 
         return res.status(200).json({ success: true, message: "Messages retrieved successfully", data: messages });
     } catch (error) {

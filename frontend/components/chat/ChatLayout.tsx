@@ -128,7 +128,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-background via-card to-background dark relative">
+    <div className="flex h-screen bg-gradient-to-br from-background via-card to-background dark relative overflow-hidden">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full blur-3xl animate-pulse" />
@@ -137,9 +137,9 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
       </div>
       
       {/* Sidebar */}
-      <div className="w-80 bg-card/60 backdrop-blur-xl border-r border-border/50 flex flex-col relative z-10 shadow-2xl">
+      <div className="w-80 bg-card/60 backdrop-blur-xl border-r border-border/50 flex flex-col relative z-10 shadow-2xl max-h-100vh">
         {/* App Header */}
-        <div className="p-4 border-b border-border/50 bg-gradient-to-r from-card/80 to-card/60 backdrop-blur-sm">
+        <div className="flex-shrink-0 p-4 border-b border-border/50 bg-gradient-to-r from-card/80 to-card/60 backdrop-blur-sm">
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-8 h-8 bg-gradient-to-br from-primary via-secondary to-accent rounded-lg flex items-center justify-center shadow-lg">
               <Hash className="w-4 h-4 text-muted-foreground drop-shadow-sm" />
@@ -181,7 +181,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
             <TabsContent value="rooms" className="p-4 m-0 h-full">
               {/* Channels Section */}
               <div className="mb-6">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between">
                   <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                     Channels
                   </h3>
@@ -193,7 +193,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="space-y-1 max-h-46 overflow-y-auto">
                     {rooms.length === 0 ? (
                       <div className="text-center text-muted-foreground py-4">
                         <Hash className="w-6 h-6 mx-auto mb-2 opacity-50" />
@@ -224,7 +224,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
 
               {/* Direct Messages Section */}
               <div>
-                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                   Direct Messages
                 </h3>
                 {loading ? (
@@ -232,7 +232,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                     <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
                     {friends.length === 0 ? (
                       <div className="text-center text-muted-foreground py-4">
                         <Users className="w-6 h-6 mx-auto mb-2 opacity-50" />
