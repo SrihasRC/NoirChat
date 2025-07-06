@@ -23,6 +23,7 @@ export default function ChatInterface() {
   const addMessage = useChatStore(state => state.addMessage)
   const updateConversation = useChatStore(state => state.updateConversation)
   const updateRoom = useChatStore(state => state.updateRoom)
+  const setConversations = useChatStore(state => state.setConversations)
   
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -184,6 +185,14 @@ export default function ChatInterface() {
           content: messageContent,
           messageType: 'text'
         })
+        
+        // Refresh conversations to show the new/updated conversation
+        try {
+          const updatedConversations = await messageService.getUserConversations()
+          setConversations(updatedConversations)
+        } catch (convError) {
+          console.error('Error refreshing conversations:', convError)
+        }
       } catch (error) {
         console.error('Error sending direct message:', error)
         // Could add message retry or error indicator here

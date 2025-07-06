@@ -56,7 +56,10 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
       
       setRooms(roomsData)
       setFriends(friendsData)
-      setConversations(conversationsData)
+      
+      // Filter out any placeholder conversations when loading real data
+      const realConversations = conversationsData.filter(conv => !conv._id.startsWith('temp-'))
+      setConversations(realConversations)
     } catch (error) {
       console.error('Error loading chat data:', error)
       // Don't redirect on error, just show empty state
@@ -79,7 +82,10 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
         try {
           // Reload conversations to get updated unread counts
           const conversationsData = await messageService.getUserConversations()
-          setConversations(conversationsData)
+          
+          // Remove any placeholder conversations and replace with real ones
+          const realConversations = conversationsData.filter(conv => !conv._id.startsWith('temp-'))
+          setConversations(realConversations)
         } catch (error) {
           console.error('Error refreshing conversations after update:', error)
         }
@@ -134,9 +140,44 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
     loadData()
   }
 
-  const handleFriendSelect = (friend: Friend) => {
+  const handleFriendSelect = async (friend: Friend) => {
     setCurrentRoom(null)
     setCurrentChatUser(friend)
+    
+    // Switch to the Chats tab to show the conversation
+    setActiveTab('chats')
+    
+    // Check if conversation already exists
+    const existingConversation = conversations.find(conv => 
+      conv.otherUser._id === friend._id
+    )
+    
+    if (!existingConversation) {
+      // Create a placeholder conversation entry for immediate UI feedback
+      const placeholderConversation: Conversation = {
+        _id: `temp-${friend._id}`, // Temporary ID
+        otherUser: {
+          _id: friend._id,
+          username: friend.username,
+          name: friend.name,
+        },
+        lastMessage: {
+          _id: 'temp-message',
+          content: 'Start a conversation...',
+          createdAt: new Date().toISOString(),
+          sender: {
+            _id: friend._id,
+            username: friend.username,
+            name: friend.name,
+          }
+        },
+        unreadCount: 0
+      }
+      
+      // Add the placeholder conversation to the store
+      const updatedConversations = [placeholderConversation, ...conversations]
+      setConversations(updatedConversations)
+    }
   }
 
   const handleConversationSelect = (conversation: Conversation) => {
@@ -150,6 +191,9 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
     }
     setCurrentRoom(null)
     setCurrentChatUser(userToChat)
+    
+    // If this is a placeholder conversation (temp ID), we'll let the real conversation
+    // replace it when the first message is sent
   }
 
   const handleUserSelect = (user: User) => {
