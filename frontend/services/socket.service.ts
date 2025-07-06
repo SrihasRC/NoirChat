@@ -44,6 +44,29 @@ export interface ConnectionStatus {
   error?: string;
 }
 
+export interface ConversationUpdate {
+  otherUser: {
+    _id: string;
+    username: string;
+    name: string;
+  };
+  lastMessage: {
+    _id: string;
+    content: string;
+    createdAt: string;
+    sender: {
+      _id: string;
+      username: string;
+      name: string;
+    };
+  };
+}
+
+export interface RoomUpdate {
+  roomId: string;
+  type: 'new_message';
+}
+
 class SocketService {
   private socket: Socket | null = null;
   private messageHandlers: ((message: Message) => void)[] = [];
@@ -52,6 +75,8 @@ class SocketService {
   private userJoinedHandlers: ((data: UserEvent) => void)[] = [];
   private userLeftHandlers: ((data: UserEvent) => void)[] = [];
   private readReceiptHandlers: ((data: ReadReceipt) => void)[] = [];
+  private conversationUpdateHandlers: ((data: ConversationUpdate) => void)[] = [];
+  private roomUpdateHandlers: ((data: RoomUpdate) => void)[] = [];
   private connectionStatusHandlers: ((status: ConnectionStatus) => void)[] = [];
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
@@ -160,6 +185,16 @@ class SocketService {
     this.socket.on('message_read_receipt', (data: ReadReceipt) => {
       this.readReceiptHandlers.forEach(handler => handler(data));
     });
+
+    // Listen for conversation updates
+    this.socket.on('conversation_updated', (data: ConversationUpdate) => {
+      this.conversationUpdateHandlers.forEach(handler => handler(data));
+    });
+
+    // Listen for room updates
+    this.socket.on('room_update', (data: RoomUpdate) => {
+      this.roomUpdateHandlers.forEach(handler => handler(data));
+    });
   }
 
   private notifyConnectionStatus(status: ConnectionStatus) {
@@ -231,6 +266,26 @@ class SocketService {
       const index = this.readReceiptHandlers.indexOf(handler);
       if (index > -1) {
         this.readReceiptHandlers.splice(index, 1);
+      }
+    };
+  }
+
+  onConversationUpdate(handler: (data: ConversationUpdate) => void) {
+    this.conversationUpdateHandlers.push(handler);
+    return () => {
+      const index = this.conversationUpdateHandlers.indexOf(handler);
+      if (index > -1) {
+        this.conversationUpdateHandlers.splice(index, 1);
+      }
+    };
+  }
+
+  onRoomUpdate(handler: (data: RoomUpdate) => void) {
+    this.roomUpdateHandlers.push(handler);
+    return () => {
+      const index = this.roomUpdateHandlers.indexOf(handler);
+      if (index > -1) {
+        this.roomUpdateHandlers.splice(index, 1);
       }
     };
   }

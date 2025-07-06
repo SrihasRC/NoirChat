@@ -52,6 +52,10 @@ class MessageService {
     return response.data.data;
   }
 
+  async markConversationAsRead(username: string): Promise<void> {
+    await api.put(`/messages/conversation/${username}/read`);
+  }
+
   async getUnreadCount(): Promise<number> {
     const response = await api.get('/messages/unread/count');
     return response.data.data.count;

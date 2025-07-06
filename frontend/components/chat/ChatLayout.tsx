@@ -49,7 +49,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
       
       // Load rooms, friends, and conversations in parallel
       const [roomsData, friendsData, conversationsData] = await Promise.all([
-        roomService.getRooms(),
+        roomService.getRoomsWithUnreadCounts(),
         friendsService.getFriends(),
         messageService.getUserConversations()
       ])
@@ -73,6 +73,36 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
   useEffect(() => {
     if (user) {
       socketService.connect()
+      
+      // Listen for conversation updates to refresh the list in real-time
+      const unsubscribeConversationUpdate = socketService.onConversationUpdate(async () => {
+        try {
+          // Reload conversations to get updated unread counts
+          const conversationsData = await messageService.getUserConversations()
+          setConversations(conversationsData)
+        } catch (error) {
+          console.error('Error refreshing conversations after update:', error)
+        }
+      })
+
+      // Listen for room updates to refresh the room list in real-time
+      const unsubscribeRoomUpdate = socketService.onRoomUpdate(async () => {
+        try {
+          // Reload rooms to get updated unread counts
+          const roomsData = await roomService.getRoomsWithUnreadCounts()
+          setRooms(roomsData)
+        } catch (error) {
+          console.error('Error refreshing rooms after update:', error)
+        }
+      })
+      
+      return () => {
+        unsubscribeConversationUpdate()
+        unsubscribeRoomUpdate()
+        if (user) {
+          socketService.disconnect()
+        }
+      }
     }
     
     return () => {
@@ -80,7 +110,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
         socketService.disconnect()
       }
     }
-  }, [user])
+  }, [user, setConversations, setRooms])
 
   const handleRoomCreated = () => {
     // Refresh the rooms list after a new room is created
@@ -232,7 +262,11 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                             currentRoom?._id === room._id ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
                           }`} />
                           <span className="flex-1 truncate font-medium">{room.name}</span>
-                          {/* TODO: Add unread count from messages */}
+                          {(room.unreadCount ?? 0) > 0 && (
+                            <span className="bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                              {room.unreadCount}
+                            </span>
+                          )}
                         </button>
                       ))
                     )}

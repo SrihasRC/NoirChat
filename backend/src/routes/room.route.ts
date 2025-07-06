@@ -6,6 +6,8 @@ import {
   sendRoomMessage,
   getRoomMessages,
   getRooms,
+  getRoomsWithUnreadCounts,
+  markRoomAsRead,
   updateRoom,
   deleteRoom,
   searchRooms
@@ -34,6 +36,10 @@ roomRouter.post("/message", authMiddleware, sendRoomMessage);
 // @ts-ignore
 roomRouter.get("/:roomId/messages", authMiddleware, getRoomMessages);
 
+// Mark all messages in a room as read
+// @ts-ignore
+roomRouter.put("/:roomId/read", authMiddleware, markRoomAsRead);
+
 // Search for rooms
 // @ts-ignore
 roomRouter.get("/search", authMiddleware, searchRooms);
@@ -41,6 +47,10 @@ roomRouter.get("/search", authMiddleware, searchRooms);
 // Get all rooms for the authenticated user
 // @ts-ignore
 roomRouter.get("/", authMiddleware, getRooms);
+
+// Get all rooms with unread counts for the authenticated user
+// @ts-ignore
+roomRouter.get("/with-unread-counts", authMiddleware, getRoomsWithUnreadCounts);
 
 // Update a room (only creator can update)
 // @ts-ignore

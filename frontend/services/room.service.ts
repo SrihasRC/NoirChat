@@ -18,6 +18,7 @@ export interface Room {
   isPrivate?: boolean;
   createdAt: string;
   updatedAt: string;
+  unreadCount?: number; // Add unread count for rooms
 }
 
 export interface CreateRoomData {
@@ -71,6 +72,15 @@ class RoomService {
   async getRooms(): Promise<Room[]> {
     const response = await api.get('/rooms/');
     return response.data.data;
+  }
+
+  async getRoomsWithUnreadCounts(): Promise<Room[]> {
+    const response = await api.get('/rooms/with-unread-counts');
+    return response.data.data;
+  }
+
+  async markRoomAsRead(roomId: string): Promise<void> {
+    await api.put(`/rooms/${roomId}/read`);
   }
 
   async updateRoom(roomId: string, data: UpdateRoomData): Promise<Room> {

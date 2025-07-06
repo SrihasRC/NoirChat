@@ -40,8 +40,27 @@ export const sendDirectMessage = async (req: Req, res: Res, next: Next) => {
 
         // Emit socket event to the receiver
         const io = getSocketIO();
-        if (io) {
+        if (io && populatedMessage) {
             io.to(`user_${receiver._id}`).emit("new_direct_message", populatedMessage);
+            
+            // Also emit conversation update to refresh the conversation list
+            io.to(`user_${receiver._id}`).emit("conversation_updated", {
+                otherUser: {
+                    _id: senderId,
+                    username: req.user.username,
+                    name: req.user.name
+                },
+                lastMessage: {
+                    _id: populatedMessage._id,
+                    content: populatedMessage.content,
+                    createdAt: populatedMessage.createdAt,
+                    sender: {
+                        _id: senderId,
+                        username: req.user.username,
+                        name: req.user.name
+                    }
+                }
+            });
         }
 
         return res.status(201).json({ success: true, message: "Message sent successfully", data: populatedMessage });
@@ -358,6 +377,54 @@ export const getMessageStats = async (req: Req, res: Res, next: Next) => {
         });
     } catch (error) {
         console.error("Error in getMessageStats:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
+export const markConversationAsRead = async (req: Req, res: Res, next: Next) => {
+    try {
+        const { username } = req.params;
+        const userId = req.user._id;
+
+        if (!username) {
+            const error: any = new Error("Username is required");
+            error.status = 400;
+            throw error;
+        }
+
+        // Find the other user by username
+        const otherUser = await User.findOne({ username });
+        if (!otherUser) {
+            const error: any = new Error("User not found");
+            error.status = 404;
+            throw error;
+        }
+
+        // Mark all unread messages from the other user as read
+        const result = await Message.updateMany(
+            { 
+                sender: otherUser._id, 
+                receiver: userId, 
+                isRead: false 
+            },
+            {
+                $set: { 
+                    isRead: true,
+                    readBy: [{ user: userId, readAt: new Date() }]
+                }
+            }
+        );
+
+        return res.status(200).json({ 
+            success: true, 
+            message: "Conversation marked as read successfully", 
+            data: { 
+                modifiedCount: result.modifiedCount,
+                conversationWith: username
+            }
+        });
+    } catch (error) {
+        console.error("Error in markConversationAsRead:", error);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }

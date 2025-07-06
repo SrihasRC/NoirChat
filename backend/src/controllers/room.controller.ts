@@ -167,6 +167,17 @@ export const sendRoomMessage = async (req: Req, res: Res, next: Next) => {
                 createdAt: message.createdAt,
                 updatedAt: message.updatedAt
             });
+
+            // Emit room update event to all room members (except sender) for unread count updates
+            const roomMembers = room.members.map(member => member.user.toString());
+            roomMembers.forEach(memberId => {
+                if (memberId !== userId.toString()) {
+                    io.to(`user_${memberId}`).emit("room_update", {
+                        roomId: roomId,
+                        type: "new_message"
+                    });
+                }
+            });
         }
 
         return res.status(200).json({ success: true, message: "Message sent successfully", data: message });
@@ -355,6 +366,167 @@ export const searchRooms = async (req: Req, res: Res, next: Next) => {
         });
     } catch (error) {
         console.error("Error in searchRooms:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
+export const getRoomsWithUnreadCounts = async (req: Req, res: Res, next: Next) => {
+    try {
+        const userId = req.user._id;
+
+        // Use aggregation to get rooms with unread counts
+        const roomsWithUnreadCounts = await Room.aggregate([
+            // Match rooms where user is a member
+            { 
+                $match: { 
+                    "members.user": userId 
+                } 
+            },
+            // Populate creator
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "creator",
+                    foreignField: "_id",
+                    as: "creator"
+                }
+            },
+            // Populate members
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "members.user",
+                    foreignField: "_id",
+                    as: "memberUsers"
+                }
+            },
+            // Get unread count for each room
+            {
+                $lookup: {
+                    from: "messages",
+                    let: { roomId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$room", "$$roomId"] },
+                                        { $ne: ["$sender", userId] },
+                                        { $eq: ["$isRead", false] }
+                                    ]
+                                }
+                            }
+                        },
+                        { $count: "unreadCount" }
+                    ],
+                    as: "unreadMessages"
+                }
+            },
+            // Transform the data
+            {
+                $project: {
+                    _id: 1,
+                    name: 1,
+                    description: 1,
+                    roomType: 1,
+                    isPrivate: 1,
+                    createdAt: 1,
+                    updatedAt: 1,
+                    creator: { $arrayElemAt: ["$creator", 0] },
+                    members: {
+                        $map: {
+                            input: "$members",
+                            as: "member",
+                            in: {
+                                user: {
+                                    $arrayElemAt: [
+                                        {
+                                            $filter: {
+                                                input: "$memberUsers",
+                                                cond: { $eq: ["$$this._id", "$$member.user"] }
+                                            }
+                                        },
+                                        0
+                                    ]
+                                },
+                                role: "$$member.role",
+                                joinedAt: "$$member.joinedAt"
+                            }
+                        }
+                    },
+                    unreadCount: {
+                        $ifNull: [
+                            { $arrayElemAt: ["$unreadMessages.unreadCount", 0] },
+                            0
+                        ]
+                    }
+                }
+            },
+            // Sort by creation time
+            {
+                $sort: { createdAt: -1 }
+            }
+        ]);
+
+        return res.status(200).json({ 
+            success: true, 
+            message: "Rooms with unread counts retrieved successfully", 
+            data: roomsWithUnreadCounts 
+        });
+    } catch (error) {
+        console.error("Error in getRoomsWithUnreadCounts:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
+export const markRoomAsRead = async (req: Req, res: Res, next: Next) => {
+    try {
+        const { roomId } = req.params;
+        const userId = req.user._id;
+
+        if (!roomId) {
+            const error: any = new Error("Room ID is required");
+            error.status = 400;
+            throw error;
+        }
+
+        // Check if user is a member of the room
+        const room = await Room.findOne({ 
+            _id: roomId, 
+            "members.user": userId 
+        });
+
+        if (!room) {
+            const error: any = new Error("Room not found or user not a member");
+            error.status = 404;
+            throw error;
+        }
+
+        // Mark all unread messages in the room as read for this user
+        const result = await Message.updateMany(
+            { 
+                room: roomId, 
+                sender: { $ne: userId },
+                isRead: false 
+            },
+            {
+                $set: { 
+                    isRead: true,
+                    readBy: [{ user: userId, readAt: new Date() }]
+                }
+            }
+        );
+
+        return res.status(200).json({ 
+            success: true, 
+            message: "Room messages marked as read successfully", 
+            data: { 
+                modifiedCount: result.modifiedCount,
+                roomId: roomId
+            }
+        });
+    } catch (error) {
+        console.error("Error in markRoomAsRead:", error);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }

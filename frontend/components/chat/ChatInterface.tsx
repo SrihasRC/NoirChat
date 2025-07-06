@@ -21,6 +21,8 @@ export default function ChatInterface() {
   const currentChatUser = useChatStore(state => state.currentChatUser)
   const setMessages = useChatStore(state => state.setMessages)
   const addMessage = useChatStore(state => state.addMessage)
+  const updateConversation = useChatStore(state => state.updateConversation)
+  const updateRoom = useChatStore(state => state.updateRoom)
   
   // Auto-scroll to bottom when messages change
   const scrollToBottom = () => {
@@ -43,6 +45,15 @@ export default function ChatInterface() {
             new Date(b.createdAt || b.timestamp || '').getTime()
           )
           setMessages(sortedMessages)
+          
+          // Mark room messages as read and update the unread count in the store
+          try {
+            await roomService.markRoomAsRead(currentRoom._id)
+            // Update the room's unread count to 0 in the store
+            updateRoom(currentRoom._id, { unreadCount: 0 })
+          } catch (error) {
+            console.error('Error marking room as read:', error)
+          }
         } catch (error) {
           console.error('Error loading room messages:', error)
         }
@@ -55,6 +66,15 @@ export default function ChatInterface() {
             new Date(b.createdAt || b.timestamp || '').getTime()
           )
           setMessages(sortedMessages)
+          
+          // Mark conversation as read and update the unread count in the store
+          try {
+            await messageService.markConversationAsRead(currentChatUser.username)
+            // Update the conversation's unread count to 0 in the store
+            updateConversation(currentChatUser._id, { unreadCount: 0 })
+          } catch (error) {
+            console.error('Error marking conversation as read:', error)
+          }
         } catch (error) {
           console.error('Error loading direct messages:', error)
         }
@@ -64,7 +84,7 @@ export default function ChatInterface() {
     }
 
     loadMessages()
-  }, [currentRoom, currentChatUser, setMessages])
+  }, [currentRoom, currentChatUser, setMessages, updateConversation, updateRoom])
 
   useEffect(() => {
     // Set up listeners for socket events

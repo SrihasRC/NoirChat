@@ -7,6 +7,7 @@ import {
   editMessage,
   getUnreadMessagesCount,
   markAsRead,
+  markConversationAsRead,
   searchMessages,
   getMessageStats
 } from "../controllers/message.controller.ts";
@@ -41,6 +42,10 @@ messageRouter.get("/unread/count", authMiddleware, getUnreadMessagesCount);
 // Mark a message as read
 // @ts-ignore
 messageRouter.put("/:messageId/read", authMiddleware, markAsRead);
+
+// Mark all messages in a conversation as read
+// @ts-ignore
+messageRouter.put("/conversation/:username/read", authMiddleware, markConversationAsRead);
 
 // Search messages
 // @ts-ignore
