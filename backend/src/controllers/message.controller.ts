@@ -93,18 +93,97 @@ export const getUserConversations = async (req: Req, res: Res, next: Next) => {
     try {
         const userId = req.user._id;
 
-        const conversations = await Message.find({
-            $or: [
-                { sender: userId },
-                { receiver: userId }
-            ]
-        }).sort({ createdAt: -1 }).populate("sender receiver", "username name");
+        // Aggregate to get unique conversations with latest message and unread count
+        const conversations = await Message.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { sender: userId },
+                        { receiver: userId }
+                    ]
+                }
+            },
+            {
+                $sort: { createdAt: -1 }
+            },
+            {
+                $group: {
+                    _id: {
+                        $cond: [
+                            { $eq: ["$sender", userId] },
+                            "$receiver",
+                            "$sender"
+                        ]
+                    },
+                    lastMessage: { $first: "$$ROOT" },
+                    unreadCount: {
+                        $sum: {
+                            $cond: [
+                                {
+                                    $and: [
+                                        { $eq: ["$receiver", userId] },
+                                        { $eq: ["$isRead", false] }
+                                    ]
+                                },
+                                1,
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "otherUser"
+                }
+            },
+            {
+                $unwind: "$otherUser"
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "lastMessage.sender",
+                    foreignField: "_id",
+                    as: "lastMessage.sender"
+                }
+            },
+            {
+                $unwind: "$lastMessage.sender"
+            },
+            {
+                $project: {
+                    otherUser: {
+                        _id: "$otherUser._id",
+                        username: "$otherUser.username",
+                        name: "$otherUser.name"
+                    },
+                    lastMessage: {
+                        _id: "$lastMessage._id",
+                        content: "$lastMessage.content",
+                        createdAt: "$lastMessage.createdAt",
+                        sender: {
+                            _id: "$lastMessage.sender._id",
+                            username: "$lastMessage.sender.username",
+                            name: "$lastMessage.sender.name"
+                        }
+                    },
+                    unreadCount: 1
+                }
+            },
+            {
+                $sort: { "lastMessage.createdAt": -1 }
+            }
+        ]);
 
-        if (!conversations || conversations.length === 0) {
-            return res.status(404).json({ success: false, message: "No conversations found" });
-        }
-
-        return res.status(200).json({ success: true, message: "Conversations retrieved successfully", data: conversations });
+        return res.status(200).json({ 
+            success: true, 
+            message: "Conversations retrieved successfully", 
+            data: conversations 
+        });
     } catch (error) {
         console.error("Error in getUserConversations:", error);
         return res.status(500).json({ success: false, message: "Internal server error" });
