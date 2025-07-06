@@ -5,9 +5,10 @@ import { Hash, Users, Bell, Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useAuthStore, useChatStore } from '@/stores/chat.store'
+import { useAuthStore, useChatStore, Conversation } from '@/stores/chat.store'
 import { roomService, Room } from '@/services/room.service'
 import { friendsService, Friend } from '@/services/friends.service'
+import { messageService } from '@/services/message.service'
 import { User } from '@/services/auth.service'
 import { socketService } from '@/services/socket.service'
 import SearchModal from './SearchModal'
@@ -22,16 +23,18 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
   const { user } = useAuthStore()
   const { 
     rooms, 
-    friends, 
+    friends,
+    conversations,
     currentRoom, 
     currentChatUser,
     setRooms, 
-    setFriends, 
+    setFriends,
+    setConversations,
     setCurrentRoom, 
     setCurrentChatUser 
   } = useChatStore()
   
-  const [activeTab, setActiveTab] = useState<'rooms' | 'friends'>('rooms')
+  const [activeTab, setActiveTab] = useState<'chats' | 'friends'>('chats')
   const [loading, setLoading] = useState(true)
 
   // Load initial data
@@ -44,21 +47,23 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
     try {
       setLoading(true)
       
-      // Load rooms and friends in parallel
-      const [roomsData, friendsData] = await Promise.all([
+      // Load rooms, friends, and conversations in parallel
+      const [roomsData, friendsData, conversationsData] = await Promise.all([
         roomService.getRooms(),
-        friendsService.getFriends()
+        friendsService.getFriends(),
+        messageService.getUserConversations()
       ])
       
       setRooms(roomsData)
       setFriends(friendsData)
+      setConversations(conversationsData)
     } catch (error) {
       console.error('Error loading chat data:', error)
       // Don't redirect on error, just show empty state
     } finally {
       setLoading(false)
     }
-  }, [user, setRooms, setFriends])
+  }, [user, setRooms, setFriends, setConversations])
 
   useEffect(() => {
     loadData()
@@ -102,6 +107,19 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
   const handleFriendSelect = (friend: Friend) => {
     setCurrentRoom(null)
     setCurrentChatUser(friend)
+  }
+
+  const handleConversationSelect = (conversation: Conversation) => {
+    // Convert the conversation's other user to a Friend-like object for consistency
+    const userToChat: Friend = {
+      _id: conversation.otherUser._id,
+      username: conversation.otherUser.username,
+      name: conversation.otherUser.name,
+      email: '', // Not available in conversation, but not needed for chat
+      profilePic: '' // Not available in conversation summary
+    }
+    setCurrentRoom(null)
+    setCurrentChatUser(userToChat)
   }
 
   const handleUserSelect = (user: User) => {
@@ -157,15 +175,15 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
           />
         </div>        
         {/* Navigation and Content */}
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'rooms' | 'friends')} className="flex flex-col flex-1">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'chats' | 'friends')} className="flex flex-col flex-1">
           {/* Navigation Tabs */}
           <div className="p-4 border-b border-border/50">
             <TabsList className="grid w-full grid-cols-2 bg-muted/50 border-border">
               <TabsTrigger 
-                value="rooms" 
+                value="chats" 
                 className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground text-muted-foreground cursor-pointer"
               >
-                Rooms
+                Chats
               </TabsTrigger>
               <TabsTrigger 
                 value="friends" 
@@ -178,7 +196,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
 
           {/* Content Area */}
           <div className="flex-1 overflow-y-auto">
-            <TabsContent value="rooms" className="p-4 m-0 h-full">
+            <TabsContent value="chats" className="p-4 m-0 h-full">
               {/* Channels Section */}
               <div className="mb-6">
                 <div className="flex items-center justify-between">
@@ -233,34 +251,53 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                   </div>
                 ) : (
                   <div className="space-y-1 max-h-48 overflow-y-auto pr-2">
-                    {friends.length === 0 ? (
+                    {conversations.length === 0 ? (
                       <div className="text-center text-muted-foreground py-4">
                         <Users className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No friends found</p>
+                        <p className="text-sm">No conversations yet</p>
                       </div>
                     ) : (
-                      friends.map((friend) => (
+                      conversations.map((conversation) => (
                         <button
-                          key={friend._id}
-                          onClick={() => handleFriendSelect(friend)}
+                          key={conversation._id}
+                          onClick={() => handleConversationSelect(conversation)}
                           className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group cursor-pointer ${
-                            currentChatUser?._id === friend._id
+                            currentChatUser?._id === conversation.otherUser._id
                               ? 'bg-secondary/80 backdrop-blur-sm text-card-foreground shadow-sm'
                               : 'text-card-foreground hover:bg-muted/40 hover:backdrop-blur-sm hover:shadow-md'
                           }`}
                         >
                           <div className="relative">
                             <Avatar className="w-7 h-7 ring-2 ring-transparent group-hover:ring-border/50 transition-all">
-                              <AvatarImage src={friend.profilePic} alt={friend.name} />
                               <AvatarFallback className="text-xs bg-muted/50 backdrop-blur-sm">
-                                {friend.name.split(' ').map((n: string) => n[0]).join('')}
+                                {conversation.otherUser.name.split(' ').map((n: string) => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>
                             {/* TODO: Add online status from socket */}
                             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full shadow-sm" />
                           </div>
-                          <span className="flex-1 truncate font-medium">{friend.name}</span>
-                          {/* TODO: Add unread count from DM messages */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-sm truncate">{conversation.otherUser.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(conversation.lastMessage.createdAt).toLocaleDateString() === new Date().toLocaleDateString()
+                                  ? new Date(conversation.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                  : new Date(conversation.lastMessage.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })
+                                }
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-muted-foreground truncate">
+                                {conversation.lastMessage.sender._id === user?._id ? 'You: ' : ''}
+                                {conversation.lastMessage.content}
+                              </p>
+                              {conversation.unreadCount > 0 && (
+                                <span className="bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                                  {conversation.unreadCount}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </button>
                       ))
                     )}

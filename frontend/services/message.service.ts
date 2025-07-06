@@ -34,7 +34,7 @@ class MessageService {
   }
 
   async getUserConversations(): Promise<Conversation[]> {
-    const response = await api.get('/messages/user-conversations');
+    const response = await api.get('/messages/conversations');
     return response.data.data;
   }
 
