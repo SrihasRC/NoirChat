@@ -1,5 +1,6 @@
 import api from '@/lib/api';
 import { Message } from '@/services/socket.service';
+import { Conversation } from '@/stores/chat.store';
 
 export interface SendMessageData {
   receiverUsername: string;
@@ -29,6 +30,11 @@ class MessageService {
 
   async getAllConversations(): Promise<Message[]> {
     const response = await api.get('/messages/conversations');
+    return response.data.data;
+  }
+
+  async getUserConversations(): Promise<Conversation[]> {
+    const response = await api.get('/messages/user-conversations');
     return response.data.data;
   }
 

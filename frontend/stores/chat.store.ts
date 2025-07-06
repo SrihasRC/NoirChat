@@ -4,6 +4,27 @@ import { Message, TypingUser, ConnectionStatus } from '@/services/socket.service
 import { Friend } from '@/services/friends.service';
 import { Room } from '@/services/room.service';
 
+// New interface for conversations
+export interface Conversation {
+  _id: string;
+  otherUser: {
+    _id: string;
+    username: string;
+    name: string;
+  };
+  lastMessage: {
+    _id: string;
+    content: string;
+    createdAt: string;
+    sender: {
+      _id: string;
+      username: string;
+      name: string;
+    };
+  };
+  unreadCount: number;
+}
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -13,6 +34,7 @@ interface AuthState {
 
 interface ChatState {
   messages: Message[]; 
+  conversations: Conversation[]; // New: actual conversations
   friends: Friend[];
   rooms: Room[];
   currentChatUser: User | null;
@@ -25,6 +47,11 @@ interface ChatState {
   addMessage: (message: Message) => void;
   updateMessage: (messageId: string, updates: Partial<Message>) => void;
   removeMessage: (messageId: string) => void;
+  
+  // New conversation methods
+  setConversations: (conversations: Conversation[]) => void;
+  addConversation: (conversation: Conversation) => void;
+  updateConversation: (userId: string, updates: Partial<Conversation>) => void;
   
   setFriends: (friends: Friend[]) => void;
   addFriend: (friend: Friend) => void;
@@ -106,6 +133,7 @@ if (typeof window !== 'undefined') {
 
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
+  conversations: [], // Initialize conversations array
   friends: [],
   rooms: [],
   currentChatUser: null,
@@ -135,6 +163,21 @@ export const useChatStore = create<ChatState>((set) => ({
   
   removeMessage: (messageId) => set((state) => ({
     messages: state.messages.filter(msg => msg._id !== messageId)
+  })),
+  
+  // Conversation actions
+  setConversations: (conversations) => set({ conversations }),
+  
+  addConversation: (conversation) => set((state) => {
+    const exists = state.conversations.find(c => c.otherUser._id === conversation.otherUser._id);
+    if (exists) return state;
+    return { conversations: [...state.conversations, conversation] };
+  }),
+  
+  updateConversation: (userId, updates) => set((state) => ({
+    conversations: state.conversations.map(conv => 
+      conv.otherUser._id === userId ? { ...conv, ...updates } : conv
+    )
   })),
   
   setFriends: (friends) => set({ friends }),
@@ -194,6 +237,7 @@ export const useChatStore = create<ChatState>((set) => ({
   
   clearChatData: () => set({
     messages: [],
+    conversations: [], // Clear conversations as well
     friends: [],
     rooms: [],
     currentChatUser: null,
