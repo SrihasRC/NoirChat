@@ -49,11 +49,28 @@ export const initializeSocket = (server: HttpServer) => {
   io.on("connection", (socket: AuthenticatedSocket) => {
     console.log(`User ${socket.username} connected`);
 
-    // Update user online status
-    User.findByIdAndUpdate(socket.userId, {
-      isOnline: true,
-      lastSeen: new Date(),
-    }).exec();
+    // Update user online status and notify contacts
+    const updateUserStatus = async (isOnline: boolean) => {
+      try {
+        await User.findByIdAndUpdate(socket.userId, {
+          isOnline: isOnline,
+          lastSeen: new Date(),
+        });
+
+        // Notify all users about status change (for friends/contacts)
+        socket.broadcast.emit("user_status_changed", {
+          userId: socket.userId,
+          username: socket.username,
+          isOnline: isOnline,
+          lastSeen: new Date()
+        });
+      } catch (error) {
+        console.error("Error updating user status:", error);
+      }
+    };
+
+    // Set user online
+    updateUserStatus(true);
 
     // Join user to their personal room for notifications
     socket.join(`user_${socket.userId}`);
@@ -145,11 +162,8 @@ export const initializeSocket = (server: HttpServer) => {
     socket.on("disconnect", () => {
       console.log(`User ${socket.username} disconnected`);
 
-      // Update user offline status
-      User.findByIdAndUpdate(socket.userId, {
-        isOnline: false,
-        lastSeen: new Date(),
-      }).exec();
+      // Set user offline and notify contacts
+      updateUserStatus(false);
     });
   });
 

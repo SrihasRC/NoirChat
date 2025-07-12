@@ -1,6 +1,13 @@
 import { io, Socket } from 'socket.io-client';
 import { authService } from '@/services/auth.service';
 
+export interface UserStatus {
+  userId: string;
+  username: string;
+  isOnline: boolean;
+  lastSeen: string;
+}
+
 export interface Message {
   _id: string;
   sender: {
@@ -78,6 +85,7 @@ class SocketService {
   private conversationUpdateHandlers: ((data: ConversationUpdate) => void)[] = [];
   private roomUpdateHandlers: ((data: RoomUpdate) => void)[] = [];
   private connectionStatusHandlers: ((status: ConnectionStatus) => void)[] = [];
+  private userStatusHandlers: ((status: UserStatus) => void)[] = [];
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
@@ -199,6 +207,11 @@ class SocketService {
     this.socket.on('room_update', (data: RoomUpdate) => {
       this.roomUpdateHandlers.forEach(handler => handler(data));
     });
+
+    // Listen for user status changes (online/offline)
+    this.socket.on('user_status_changed', (data: UserStatus) => {
+      this.userStatusHandlers.forEach(handler => handler(data));
+    });
   }
 
   private notifyConnectionStatus(status: ConnectionStatus) {
@@ -304,6 +317,16 @@ class SocketService {
     };
   }
 
+  onUserStatusChange(handler: (status: UserStatus) => void) {
+    this.userStatusHandlers.push(handler);
+    return () => {
+      const index = this.userStatusHandlers.indexOf(handler);
+      if (index > -1) {
+        this.userStatusHandlers.splice(index, 1);
+      }
+    };
+  }
+
   // Emit events with error handling
   joinRoom(roomId: string): boolean {
     if (!this.isConnected()) {
@@ -402,6 +425,7 @@ class SocketService {
     this.userLeftHandlers = [];
     this.readReceiptHandlers = [];
     this.connectionStatusHandlers = [];
+    this.userStatusHandlers = [];
   }
 
   // Force reconnect method

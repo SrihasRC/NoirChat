@@ -14,6 +14,7 @@ import { socketService } from '@/services/socket.service'
 import SearchModal from './SearchModal'
 import CreateRoomModal from './CreateRoomModal'
 import SettingsModal from './SettingsModal'
+import UserStatusIndicator from '@/components/ui/user-status-indicator'
 
 interface ChatLayoutProps {
   children: React.ReactNode
@@ -33,6 +34,8 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
   const setCurrentChatUser = useChatStore(state => state.setCurrentChatUser)
   const reorderConversationsByLatest = useChatStore(state => state.reorderConversationsByLatest)
   const reorderRoomsByLatest = useChatStore(state => state.reorderRoomsByLatest)
+  const updateFriendStatus = useChatStore(state => state.updateFriendStatus)
+  const updateConversationUserStatus = useChatStore(state => state.updateConversationUserStatus)
   
   const [activeTab, setActiveTab] = useState<'chats' | 'friends'>('chats')
   const [loading, setLoading] = useState(true)
@@ -133,10 +136,24 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
         }
       })
       
+      // Listen for user status changes (online/offline presence)
+      const unsubscribeUserStatus = socketService.onUserStatusChange((userStatus) => {
+        try {
+          // Update friend status in the friends list
+          updateFriendStatus(userStatus.userId, userStatus.isOnline, userStatus.lastSeen)
+          
+          // Update user status in conversations list
+          updateConversationUserStatus(userStatus.userId, userStatus.isOnline, userStatus.lastSeen)
+        } catch (error) {
+          console.error('Error updating user status:', error)
+        }
+      })
+      
       return () => {
         unsubscribeConversationUpdate()
         unsubscribeRoomUpdate()
         unsubscribeNewMessage()
+        unsubscribeUserStatus()
         if (user) {
           socketService.disconnect()
         }
@@ -148,7 +165,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
         socketService.disconnect()
       }
     }
-  }, [user, setConversations, setRooms, reorderConversationsByLatest, reorderRoomsByLatest])
+  }, [user, setConversations, setRooms, reorderConversationsByLatest, reorderRoomsByLatest, updateFriendStatus, updateConversationUserStatus])
 
   const handleRoomCreated = () => {
     // Refresh the rooms list after a new room is created
@@ -383,8 +400,10 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                                 {conversation.otherUser.name.split(' ').map((n: string) => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>
-                            {/* TODO: Add online status from socket */}
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full shadow-sm" />
+                            <UserStatusIndicator 
+                              isOnline={conversation.otherUser.isOnline ?? false}
+                              className="absolute -bottom-0.5 -right-0.5"
+                            />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
@@ -452,8 +471,10 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                                 {friend.name.split(' ').map((n: string) => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>
-                            {/* Online status indicator */}
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full shadow-sm" />
+                            <UserStatusIndicator 
+                              isOnline={friend.isOnline ?? false}
+                              className="absolute -bottom-0.5 -right-0.5"
+                            />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-card-foreground truncate">{friend.name}</p>
@@ -487,7 +508,10 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
                   {user?.name?.split(' ').map(n => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-card rounded-full shadow-sm" />
+              <UserStatusIndicator 
+                isOnline={true} // Current user is always online
+                className="absolute -bottom-0.5 -right-0.5"
+              />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-card-foreground truncate">{user?.name}</p>

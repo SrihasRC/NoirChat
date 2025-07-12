@@ -11,6 +11,8 @@ export interface Conversation {
     _id: string;
     username: string;
     name: string;
+    isOnline?: boolean;
+    lastSeen?: string;
   };
   lastMessage: {
     _id: string;
@@ -57,6 +59,7 @@ interface ChatState {
   setFriends: (friends: Friend[]) => void;
   addFriend: (friend: Friend) => void;
   removeFriend: (friendId: string) => void;
+  updateFriendStatus: (userId: string, isOnline: boolean, lastSeen?: string) => void;
   
   setRooms: (rooms: Room[]) => void;
   addRoom: (room: Room) => void;
@@ -70,6 +73,7 @@ interface ChatState {
   
   addTypingUser: (user: TypingUser) => void;
   removeTypingUser: (userId: string) => void;
+  updateConversationUserStatus: (userId: string, isOnline: boolean, lastSeen?: string) => void;
   
   setConnectionStatus: (status: ConnectionStatus) => void;
   
@@ -216,6 +220,14 @@ export const useChatStore = create<ChatState>((set) => ({
   removeFriend: (friendId) => set((state) => ({
     friends: state.friends.filter(friend => friend._id !== friendId)
   })),
+
+  updateFriendStatus: (userId, isOnline, lastSeen) => set((state) => ({
+    friends: state.friends.map(friend => 
+      friend._id === userId || friend.username === userId
+        ? { ...friend, isOnline, lastSeen } 
+        : friend
+    )
+  })),
   
   // Rooms actions
   setRooms: (rooms) => set({ rooms }),
@@ -277,6 +289,14 @@ export const useChatStore = create<ChatState>((set) => ({
   
   removeTypingUser: (userId) => set((state) => ({
     typingUsers: state.typingUsers.filter(user => user.userId !== userId)
+  })),
+
+  updateConversationUserStatus: (userId, isOnline, lastSeen) => set((state) => ({
+    conversations: state.conversations.map(conv => 
+      conv.otherUser._id === userId || conv.otherUser.username === userId
+        ? { ...conv, otherUser: { ...conv.otherUser, isOnline, lastSeen } } 
+        : conv
+    )
   })),
   
   setConnectionStatus: (status) => set({ connectionStatus: status }),

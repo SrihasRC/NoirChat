@@ -178,7 +178,9 @@ export const getUserConversations = async (req: Req, res: Res, next: Next) => {
                     otherUser: {
                         _id: "$otherUser._id",
                         username: "$otherUser.username",
-                        name: "$otherUser.name"
+                        name: "$otherUser.name",
+                        isOnline: "$otherUser.isOnline",
+                        lastSeen: "$otherUser.lastSeen"
                     },
                     lastMessage: {
                         _id: "$lastMessage._id",

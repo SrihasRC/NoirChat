@@ -9,6 +9,7 @@ import { useChatStore, useAuthStore } from '@/stores/chat.store'
 import { roomService } from '@/services/room.service'
 import { messageService } from '@/services/message.service'
 import { socketService, Message } from '@/services/socket.service'
+import UserStatusIndicator from '@/components/ui/user-status-indicator'
 
 export default function ChatInterface() {
   const [message, setMessage] = useState('')
@@ -439,14 +440,20 @@ export default function ChatInterface() {
               
               return (
                 <div key={index} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/20 transition-colors">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback className="text-xs bg-gradient-to-br from-muted/50 to-muted/30">
-                      {memberUser?.name 
-                        ? memberUser.name.split(' ').map((n: string) => n[0]).join('')
-                        : 'U'
-                      }
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="text-xs bg-gradient-to-br from-muted/50 to-muted/30">
+                        {memberUser?.name 
+                          ? memberUser.name.split(' ').map((n: string) => n[0]).join('')
+                          : 'U'
+                        }
+                      </AvatarFallback>
+                    </Avatar>
+                    <UserStatusIndicator 
+                      isOnline={memberUser?.isOnline ?? false}
+                      className="absolute -bottom-0.5 -right-0.5"
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-card-foreground truncate">
                       {memberUser?.name || 'Unknown User'}

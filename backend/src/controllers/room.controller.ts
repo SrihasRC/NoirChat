@@ -35,8 +35,8 @@ export const createRoom = async (req: Req, res: Res, next: Next) => {
         });
 
         await room.save();
-        await room.populate('creator', 'username email name profilePic');
-        await room.populate('members.user', 'username name email profilePic');
+        await room.populate('creator', 'username email name profilePic isOnline lastSeen');
+        await room.populate('members.user', 'username name email profilePic isOnline lastSeen');
 
         return res.status(201).json({ success: true, message: "Room created successfully", data: room });
     } catch (error) {
@@ -77,8 +77,8 @@ export const joinRoom = async (req: Req, res: Res, next: Next) => {
         });
         
         await room.save();
-        await room.populate('creator', 'username name email profilePic');
-        await room.populate('members.user', 'username name email profilePic');
+        await room.populate('creator', 'username name email profilePic isOnline lastSeen');
+        await room.populate('members.user', 'username name email profilePic isOnline lastSeen');
 
         return res.status(200).json({ success: true, message: "Joined room successfully", data: room });
     } catch (error) {
@@ -248,8 +248,8 @@ export const getRooms = async (req: Req, res: Res, next: Next) => {
         const rooms = await Room.find({ 
             "members.user": userId 
         })
-        .populate("creator", "username name email profilePic")
-        .populate("members.user", "username name email profilePic")
+        .populate("creator", "username name email profilePic isOnline lastSeen")
+        .populate("members.user", "username name email profilePic isOnline lastSeen")
         .sort({ lastActivity: -1 });
 
         // Clean up duplicate members in existing rooms (temporary fix for legacy data)
@@ -372,8 +372,8 @@ export const searchRooms = async (req: Req, res: Res, next: Next) => {
                 }
             ]
         })
-        .populate('creator', 'username name email profilePic')
-        .populate('members.user', 'username name profilePic')
+        .populate('creator', 'username name email profilePic isOnline lastSeen')
+        .populate('members.user', 'username name profilePic isOnline lastSeen')
         .sort({ createdAt: -1 })
         .limit(20); // Limit results to prevent performance issues
 
