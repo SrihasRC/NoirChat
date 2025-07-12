@@ -10,7 +10,8 @@ import {
   markRoomAsRead,
   updateRoom,
   deleteRoom,
-  searchRooms
+  searchRooms,
+  cleanupDuplicateMembers
 } from "../controllers/room.controller.ts";
 import authMiddleware from "../middleware/auth.middleware.ts";
 
@@ -59,5 +60,9 @@ roomRouter.put("/:roomId", authMiddleware, updateRoom);
 // Delete a room (only creator can delete)
 // @ts-ignore
 roomRouter.delete("/:roomId", authMiddleware, deleteRoom);
+
+// Cleanup duplicate members in all rooms (admin function)
+// @ts-ignore
+roomRouter.post("/cleanup-duplicates", authMiddleware, cleanupDuplicateMembers);
 
 export default roomRouter;

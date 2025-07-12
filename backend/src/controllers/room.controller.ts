@@ -14,23 +14,18 @@ export const createRoom = async (req: Req, res: Res, next: Next) => {
             throw error;
         }
 
-        // Members array can be empty (creator will be added automatically)
+        // Members array can be empty (creator will be added automatically by pre-save hook)
         const membersArray = members || [];
-
-        // Ensure the creator is included in the members (convert all to strings for comparison)
-        const creatorIdStr = creatorId.toString();
-        const memberStrings = membersArray.map((id: any) => id.toString());
-        const membersList = [...new Set([...memberStrings, creatorIdStr])];
 
         const room = new Room({
             name,
             description: description || "",
-            members: membersList.map(memberId => ({
+            members: membersArray.map((memberId: any) => ({
                 user: memberId,
-                role: memberId === creatorIdStr ? "owner" : "member"
+                role: "member"
             })),
             creator: creatorId,
-            admins: [creatorId],
+            admins: [], // Will be populated by pre-save hook
             isPrivate: isPrivate || false
         });
 
@@ -487,10 +482,28 @@ export const getRoomsWithUnreadCounts = async (req: Req, res: Res, next: Next) =
             }
         ]);
 
+        // Clean up duplicate members (same as getRooms function)
+        const cleanedRooms = roomsWithUnreadCounts.map(room => {
+            const seenUsers = new Set();
+            const uniqueMembers = room.members.filter((member: any) => {
+                const userIdStr = member.user._id.toString();
+                if (seenUsers.has(userIdStr)) {
+                    return false;
+                }
+                seenUsers.add(userIdStr);
+                return true;
+            });
+            
+            return {
+                ...room,
+                members: uniqueMembers
+            };
+        });
+
         return res.status(200).json({ 
             success: true, 
             message: "Rooms with unread counts retrieved successfully", 
-            data: roomsWithUnreadCounts 
+            data: cleanedRooms 
         });
     } catch (error) {
         console.error("Error in getRoomsWithUnreadCounts:", error);
@@ -546,6 +559,46 @@ export const markRoomAsRead = async (req: Req, res: Res, next: Next) => {
         });
     } catch (error) {
         console.error("Error in markRoomAsRead:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
+export const cleanupDuplicateMembers = async (req: Req, res: Res, next: Next) => {
+    try {
+        const rooms = await Room.find({});
+        let cleanedCount = 0;
+
+        for (const room of rooms) {
+            const seenUsers = new Set();
+            const uniqueMembers = [];
+            let hasDuplicates = false;
+
+            for (const member of room.members) {
+                const userIdStr = member.user.toString();
+                if (seenUsers.has(userIdStr)) {
+                    hasDuplicates = true;
+                    continue;
+                }
+                seenUsers.add(userIdStr);
+                uniqueMembers.push(member);
+            }
+
+            if (hasDuplicates) {
+                // Clear the members array and push unique members
+                room.members.splice(0, room.members.length);
+                uniqueMembers.forEach(member => room.members.push(member));
+                await room.save();
+                cleanedCount++;
+            }
+        }
+
+        return res.status(200).json({ 
+            success: true, 
+            message: `Cleaned up duplicate members in ${cleanedCount} rooms`,
+            data: { cleanedRooms: cleanedCount }
+        });
+    } catch (error) {
+        console.error("Error in cleanupDuplicateMembers:", error);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
 }

@@ -64,14 +64,29 @@ const roomSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// Ensure creator is added as owner
+// Ensure creator is added as owner and prevent duplicates
 roomSchema.pre("save", function(next) {
     if (this.isNew) {
-        this.members.push({
-            user: this.creator,
-            role: "owner"
-        });
-        this.admins.push(this.creator);
+        // Check if creator is already in members array
+        const creatorExists = this.members.some(member => member.user.toString() === this.creator.toString());
+        
+        if (!creatorExists) {
+            this.members.push({
+                user: this.creator,
+                role: "owner"
+            });
+        } else {
+            // If creator exists, make sure they have owner role
+            const creatorMember = this.members.find(member => member.user.toString() === this.creator.toString());
+            if (creatorMember) {
+                creatorMember.role = "owner";
+            }
+        }
+        
+        // Ensure creator is in admins array
+        if (!this.admins.includes(this.creator)) {
+            this.admins.push(this.creator);
+        }
     }
     next();
 });
