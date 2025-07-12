@@ -156,6 +156,10 @@ class SocketService {
     });
 
     // Listen for new messages
+    this.socket.on('new_message', (message: Message) => {
+      this.messageHandlers.forEach(handler => handler(message));
+    });
+
     this.socket.on('new_direct_message', (message: Message) => {
       this.messageHandlers.forEach(handler => handler(message));
     });

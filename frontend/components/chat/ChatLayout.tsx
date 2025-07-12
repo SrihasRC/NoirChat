@@ -21,18 +21,18 @@ interface ChatLayoutProps {
 
 export default function ChatLayout({ children }: ChatLayoutProps) {
   const { user } = useAuthStore()
-  const { 
-    rooms, 
-    friends,
-    conversations,
-    currentRoom, 
-    currentChatUser,
-    setRooms, 
-    setFriends,
-    setConversations,
-    setCurrentRoom, 
-    setCurrentChatUser 
-  } = useChatStore()
+  const rooms = useChatStore(state => state.rooms)
+  const friends = useChatStore(state => state.friends)
+  const conversations = useChatStore(state => state.conversations)
+  const currentRoom = useChatStore(state => state.currentRoom)
+  const currentChatUser = useChatStore(state => state.currentChatUser)
+  const setRooms = useChatStore(state => state.setRooms)
+  const setFriends = useChatStore(state => state.setFriends)
+  const setConversations = useChatStore(state => state.setConversations)
+  const setCurrentRoom = useChatStore(state => state.setCurrentRoom)
+  const setCurrentChatUser = useChatStore(state => state.setCurrentChatUser)
+  const reorderConversationsByLatest = useChatStore(state => state.reorderConversationsByLatest)
+  const reorderRoomsByLatest = useChatStore(state => state.reorderRoomsByLatest)
   
   const [activeTab, setActiveTab] = useState<'chats' | 'friends'>('chats')
   const [loading, setLoading] = useState(true)
@@ -80,7 +80,10 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
       // Listen for conversation updates to refresh the list in real-time
       const unsubscribeConversationUpdate = socketService.onConversationUpdate(async () => {
         try {
-          // Reload conversations to get updated unread counts
+          // First, immediately reorder the current list for instant UI update
+          reorderConversationsByLatest()
+          
+          // Then, reload conversations in the background to get updated unread counts
           const conversationsData = await messageService.getUserConversations()
           
           // Remove any placeholder conversations and replace with real ones
@@ -92,19 +95,48 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
       })
 
       // Listen for room updates to refresh the room list in real-time
-      const unsubscribeRoomUpdate = socketService.onRoomUpdate(async () => {
+      const unsubscribeRoomUpdate = socketService.onRoomUpdate(async (data) => {
         try {
-          // Reload rooms to get updated unread counts
+          // First, immediately reorder the current list for instant UI update
+          reorderRoomsByLatest(data?.roomId)
+          
+          // Then, reload rooms in the background to get updated unread counts
           const roomsData = await roomService.getRoomsWithUnreadCounts()
           setRooms(roomsData)
         } catch (error) {
           console.error('Error refreshing rooms after update:', error)
         }
       })
+
+      // Listen for any new messages to refresh both lists and reorder immediately
+      const unsubscribeNewMessage = socketService.onNewMessage(async (message) => {
+        try {
+          // Handle both room and conversation reordering in the same place
+          if (message.room) {
+            reorderRoomsByLatest(message.room)
+          } else if (message.sender._id) {
+            reorderConversationsByLatest(message.sender._id)
+          }
+          
+          // Background refresh to ensure data consistency
+          const [conversationsData, roomsData] = await Promise.all([
+            messageService.getUserConversations(),
+            roomService.getRoomsWithUnreadCounts()
+          ])
+          
+          // Remove any placeholder conversations
+          const realConversations = conversationsData.filter(conv => !conv._id.startsWith('temp-'))
+          setConversations(realConversations)
+          setRooms(roomsData)
+        } catch (error) {
+          console.error('Error refreshing lists after new message:', error)
+        }
+      })
       
       return () => {
         unsubscribeConversationUpdate()
         unsubscribeRoomUpdate()
+        unsubscribeNewMessage()
         if (user) {
           socketService.disconnect()
         }
@@ -116,7 +148,7 @@ export default function ChatLayout({ children }: ChatLayoutProps) {
         socketService.disconnect()
       }
     }
-  }, [user, setConversations, setRooms])
+  }, [user, setConversations, setRooms, reorderConversationsByLatest, reorderRoomsByLatest])
 
   const handleRoomCreated = () => {
     // Refresh the rooms list after a new room is created

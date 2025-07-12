@@ -156,9 +156,16 @@ export const sendRoomMessage = async (req: Req, res: Res, next: Next) => {
         await message.save();
         await message.populate('sender', 'username name profilePic');
 
+        // Update room's lastMessage and lastActivity
+        await Room.findByIdAndUpdate(roomId, {
+            lastMessage: message._id,
+            lastActivity: new Date()
+        });
+
         // Emit socket event for real-time message delivery
         const io = getSocketIO();
         if (io) {
+            // Emit to the room for users currently in the room
             io.to(`room_${roomId}`).emit("new_room_message", {
                 _id: message._id,
                 content: message.content,
@@ -168,9 +175,20 @@ export const sendRoomMessage = async (req: Req, res: Res, next: Next) => {
                 updatedAt: message.updatedAt
             });
 
-            // Emit room update event to all room members (except sender) for unread count updates
+            // Emit room update event to all room members for unread count updates and list reordering
             const roomMembers = room.members.map(member => member.user.toString());
             roomMembers.forEach(memberId => {
+                // Emit general new_message event for global listeners (like ChatLayout)
+                io.to(`user_${memberId}`).emit("new_message", {
+                    _id: message._id,
+                    content: message.content,
+                    room: message.room,
+                    sender: message.sender,
+                    createdAt: message.createdAt,
+                    updatedAt: message.updatedAt
+                });
+                
+                // Emit room update event for unread count updates (except sender)
                 if (memberId !== userId.toString()) {
                     io.to(`user_${memberId}`).emit("room_update", {
                         roomId: roomId,
@@ -232,7 +250,7 @@ export const getRooms = async (req: Req, res: Res, next: Next) => {
         })
         .populate("creator", "username name email profilePic")
         .populate("members.user", "username name email profilePic")
-        .sort({ createdAt: -1 });
+        .sort({ lastActivity: -1 });
 
         // Clean up duplicate members in existing rooms (temporary fix for legacy data)
         const cleanedRooms = rooms.map(room => {
@@ -432,6 +450,7 @@ export const getRoomsWithUnreadCounts = async (req: Req, res: Res, next: Next) =
                     isPrivate: 1,
                     createdAt: 1,
                     updatedAt: 1,
+                    lastActivity: 1,
                     creator: { $arrayElemAt: ["$creator", 0] },
                     members: {
                         $map: {
@@ -462,9 +481,9 @@ export const getRoomsWithUnreadCounts = async (req: Req, res: Res, next: Next) =
                     }
                 }
             },
-            // Sort by creation time
+            // Sort by last activity time (most recent first)
             {
-                $sort: { createdAt: -1 }
+                $sort: { lastActivity: -1 }
             }
         ]);
 

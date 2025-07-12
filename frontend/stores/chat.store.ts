@@ -52,6 +52,7 @@ interface ChatState {
   setConversations: (conversations: Conversation[]) => void;
   addConversation: (conversation: Conversation) => void;
   updateConversation: (userId: string, updates: Partial<Conversation>) => void;
+  reorderConversationsByLatest: (userId?: string) => void;
   
   setFriends: (friends: Friend[]) => void;
   addFriend: (friend: Friend) => void;
@@ -61,6 +62,7 @@ interface ChatState {
   addRoom: (room: Room) => void;
   updateRoom: (roomId: string, updates: Partial<Room>) => void;
   removeRoom: (roomId: string) => void;
+  reorderRoomsByLatest: (roomId?: string) => void;
   
   setCurrentChatUser: (user: User | null) => void;
   setCurrentRoom: (room: Room | null) => void;
@@ -179,6 +181,29 @@ export const useChatStore = create<ChatState>((set) => ({
       conv.otherUser._id === userId ? { ...conv, ...updates } : conv
     )
   })),
+
+  reorderConversationsByLatest: (userId?: string) => set((state) => {
+    const currentTime = new Date().toISOString()
+    const updatedConversations = state.conversations.map(conv => 
+      userId && conv.otherUser._id === userId 
+        ? { 
+            ...conv, 
+            lastMessage: { 
+              ...conv.lastMessage, 
+              createdAt: currentTime 
+            } 
+          }
+        : conv
+    )
+    
+    return {
+      conversations: [...updatedConversations].sort((a, b) => {
+        const aTime = new Date(a.lastMessage.createdAt).getTime()
+        const bTime = new Date(b.lastMessage.createdAt).getTime()
+        return bTime - aTime // Latest first
+      })
+    }
+  }),
   
   setFriends: (friends) => set({ friends }),
   
@@ -206,6 +231,27 @@ export const useChatStore = create<ChatState>((set) => ({
       room._id === roomId ? { ...room, ...updates } : room
     )
   })),
+
+  reorderRoomsByLatest: (roomId?: string) => set((state) => {
+    const currentTime = new Date().toISOString()
+    
+    // Create completely new room objects to ensure React re-renders
+    const updatedRooms = state.rooms.map(room => ({
+      ...room,
+      lastMessageTime: roomId && room._id === roomId ? currentTime : room.lastMessageTime
+    }))
+    
+    const sortedRooms = updatedRooms.sort((a, b) => {
+      // Use lastMessageTime if available, otherwise fall back to updatedAt
+      const aTime = new Date(a.lastMessageTime || a.updatedAt).getTime()
+      const bTime = new Date(b.lastMessageTime || b.updatedAt).getTime()
+      return bTime - aTime // Latest first
+    })
+    
+    return {
+      rooms: sortedRooms
+    }
+  }),
   
   removeRoom: (roomId) => set((state) => ({
     rooms: state.rooms.filter(room => room._id !== roomId)

@@ -19,6 +19,7 @@ export interface Room {
   createdAt: string;
   updatedAt: string;
   unreadCount?: number; // Add unread count for rooms
+  lastMessageTime?: string; // Add last message time for sorting
 }
 
 export interface CreateRoomData {
